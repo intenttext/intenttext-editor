@@ -3,192 +3,323 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IntentText Converter — HTML, Markdown ↔ IntentText (.it)</title>
-
+    <title>IntentText — Write Structured Documents</title>
     <meta
       name="description"
-      content="Convert between HTML, Markdown, and IntentText (.it). Runs entirely in your browser — no uploads, no tracking."
+      content="Write beautiful, structured documents with IntentText. Templates, live preview, and export to PDF, HTML, or Markdown. Runs in your browser — no uploads."
     />
-
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://toit-psi.vercel.app/" />
-    <meta
-      property="og:title"
-      content="IntentText Converter — HTML, Markdown ↔ .it"
-    />
-    <meta
-      property="og:description"
-      content="Convert between HTML, Markdown, and IntentText. Browser-only — no uploads."
-    />
-
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="IntentText Converter" />
-    <meta
-      name="twitter:description"
-      content="Convert between HTML, Markdown, and IntentText. Browser-only — no uploads."
-    />
   </head>
   <body>
     <div class="app">
-      <!-- Header -->
+      <!-- ── Header ─────────────────────────────────────────── -->
       <header>
         <div class="header-left">
           <h1>Intent<span>Text</span></h1>
-          <div class="mode-toggle">
-            <button class="mode-btn active" data-mode="web-to-it">
-              Web → .it
+        </div>
+        <div class="header-center">
+          <div class="dropdown" id="new-dropdown">
+            <button class="btn" id="new-btn">
+              <span class="btn-icon">+</span> New
             </button>
-            <button class="mode-btn" data-mode="it-to-web">.it → Web</button>
+            <div class="dropdown-menu" id="new-menu"></div>
           </div>
+          <button class="btn" id="open-btn">Open</button>
+          <button class="btn" id="save-btn">Save</button>
+          <button class="btn" id="import-btn">Import</button>
         </div>
         <div class="header-right">
-          <button class="btn" id="example-btn">Example</button>
-          <span class="badge">v1.3</span>
-          <a
-            href="https://github.com/emadjumaah/IntentText"
-            target="_blank"
-            rel="noopener"
-            >GitHub</a
-          >
-          <a
-            href="https://www.npmjs.com/package/@intenttext/core"
-            target="_blank"
-            rel="noopener"
-            >npm</a
-          >
+          <button class="btn" id="query-btn">Query</button>
+          <div class="dropdown" id="export-dropdown">
+            <button class="btn primary" id="export-btn">Export ▾</button>
+            <div class="dropdown-menu" id="export-menu">
+              <button class="dropdown-item" data-export="it">
+                Download .it file
+              </button>
+              <button class="dropdown-item" data-export="html">
+                Download HTML
+              </button>
+              <button class="dropdown-item" data-export="md">
+                Download Markdown
+              </button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" data-export="pdf">
+                Print / PDF
+              </button>
+              <button class="dropdown-item" data-export="copy">
+                Copy to clipboard
+              </button>
+            </div>
+          </div>
+          <button class="btn icon-btn" id="help-btn" title="Quick Reference">
+            ?
+          </button>
         </div>
       </header>
 
-      <!-- Two-panel workspace -->
-      <div class="panels">
-        <!-- LEFT: Input panel -->
-        <div class="panel" id="input-panel">
-          <div class="panel-header">
-            <!-- web-to-it input tabs -->
-            <div class="tabs" id="wti-input-tabs">
-              <button class="tab-btn active" data-tab="pane-html-input">
-                HTML
-              </button>
-              <button class="tab-btn" data-tab="pane-md-input">Markdown</button>
-            </div>
-            <!-- it-to-web input tabs -->
-            <div class="tabs" id="itw-input-tabs" hidden>
-              <button class="tab-btn active" data-tab="pane-it-input">
-                .it Source
-              </button>
-              <button class="tab-btn" data-tab="pane-it-input-preview">
-                Preview
-              </button>
-            </div>
-            <div class="panel-actions">
-              <button class="btn" id="clear-btn">Clear</button>
-            </div>
-          </div>
+      <!-- ── Keyword toolbar ────────────────────────────────── -->
+      <div class="toolbar" id="keyword-toolbar">
+        <button class="kw-btn" data-kw="title: ">title</button>
+        <button class="kw-btn" data-kw="section: ">section</button>
+        <button class="kw-btn" data-kw="sub: ">sub</button>
+        <span class="toolbar-sep"></span>
+        <button class="kw-btn" data-kw="note: ">note</button>
+        <button class="kw-btn" data-kw="task: ">task</button>
+        <button class="kw-btn" data-kw="done: ">done</button>
+        <button class="kw-btn" data-kw="[ ] ">checkbox</button>
+        <span class="toolbar-sep"></span>
+        <button class="kw-btn" data-kw="question: ">question</button>
+        <button class="kw-btn" data-kw="quote: ">quote</button>
+        <button class="kw-btn" data-kw="summary: ">summary</button>
+        <span class="toolbar-sep"></span>
+        <button class="kw-btn callout" data-kw="info: ">info</button>
+        <button class="kw-btn callout" data-kw="warning: ">warning</button>
+        <button class="kw-btn callout" data-kw="tip: ">tip</button>
+        <button class="kw-btn callout" data-kw="success: ">success</button>
+        <span class="toolbar-sep"></span>
+        <button class="kw-btn" data-kw="| Col 1 | Col 2 | Col 3 |">
+          table
+        </button>
+        <button class="kw-btn" data-kw="---">divider</button>
+        <button class="kw-btn" data-kw="link:  | to: ">link</button>
+        <button class="kw-btn" data-kw="image:  | at: ">image</button>
+      </div>
 
-          <!-- web-to-it: HTML input -->
-          <div class="tab-pane active" id="pane-html-input" data-mode="wti">
-            <div
-              id="html-editor"
-              class="html-editor"
-              contenteditable="true"
-              spellcheck="false"
-              role="textbox"
-              aria-label="HTML input"
-              aria-multiline="true"
-            ></div>
-          </div>
-
-          <!-- web-to-it: Markdown input -->
-          <div class="tab-pane" id="pane-md-input" data-mode="wti">
-            <textarea
-              id="md-input-area"
-              class="md-editor"
-              spellcheck="false"
-              placeholder="Type or paste Markdown here…"
-              aria-label="Markdown input"
-            ></textarea>
-          </div>
-
-          <!-- it-to-web: IT source input (Monaco) -->
-          <div class="tab-pane" id="pane-it-input" data-mode="itw">
-            <div id="it-input-editor" class="monaco-container"></div>
-          </div>
-
-          <!-- it-to-web: IT preview -->
-          <div class="tab-pane" id="pane-it-input-preview" data-mode="itw">
-            <div id="input-preview" class="preview-area">
-              <p class="preview-empty">
-                Preview will appear here once you add content…
-              </p>
-            </div>
+      <!-- ── Main workspace ─────────────────────────────────── -->
+      <div class="workspace">
+        <!-- Editor panel -->
+        <div class="editor-panel" id="editor-panel">
+          <div id="monaco-editor" class="monaco-container"></div>
+          <div class="status-bar" id="status-bar">
+            <span id="stats">0 blocks · 0 lines</span>
+            <span id="save-status"></span>
           </div>
         </div>
 
-        <!-- RIGHT: Output panel -->
-        <div class="panel" id="output-panel">
-          <div class="panel-header">
-            <!-- web-to-it output tabs -->
-            <div class="tabs" id="wti-output-tabs">
-              <button class="tab-btn active" data-tab="pane-it-output">
-                .it Source
-              </button>
-              <button class="tab-btn" data-tab="pane-it-output-preview">
-                Preview
-              </button>
-            </div>
-            <!-- it-to-web output tabs -->
-            <div class="tabs" id="itw-output-tabs" hidden>
-              <button class="tab-btn active" data-tab="pane-html-output">
-                HTML
-              </button>
-              <button class="tab-btn" data-tab="pane-md-output">
+        <!-- Resize handle -->
+        <div class="resize-handle" id="resize-handle"></div>
+
+        <!-- Preview panel -->
+        <div class="preview-panel" id="preview-panel">
+          <div class="preview-tabs">
+            <button class="preview-tab active" data-preview="rendered">
+              Preview
+            </button>
+            <button class="preview-tab" data-preview="html">HTML</button>
+            <button class="preview-tab" data-preview="markdown">
+              Markdown
+            </button>
+          </div>
+          <div
+            class="preview-content active"
+            id="preview-rendered"
+            data-preview="rendered"
+          >
+            <p class="preview-empty">
+              Start writing on the left to see a live preview…
+            </p>
+          </div>
+          <div class="preview-content" id="preview-html" data-preview="html">
+            <pre><code id="html-code"></code></pre>
+          </div>
+          <div
+            class="preview-content"
+            id="preview-markdown"
+            data-preview="markdown"
+          >
+            <pre><code id="markdown-code"></code></pre>
+          </div>
+        </div>
+
+        <!-- Query panel (hidden by default) -->
+        <div class="query-panel hidden" id="query-panel">
+          <div class="query-header">
+            <h3>Query Blocks</h3>
+            <button class="btn-close" id="query-close">✕</button>
+          </div>
+          <div class="query-form">
+            <label>Block type</label>
+            <select id="query-type">
+              <option value="">All types</option>
+              <option value="task">Tasks</option>
+              <option value="done">Completed</option>
+              <option value="note">Notes</option>
+              <option value="section">Sections</option>
+              <option value="question">Questions</option>
+              <option value="info">Info</option>
+              <option value="warning">Warnings</option>
+            </select>
+            <label>Contains text</label>
+            <input type="text" id="query-text" placeholder="Search content…" />
+            <label>Owner</label>
+            <input type="text" id="query-owner" placeholder="e.g. Ahmed" />
+            <button class="btn primary full-width" id="query-apply">
+              Apply Filter
+            </button>
+          </div>
+          <div class="query-results" id="query-results">
+            <p class="query-empty">Apply a filter to see results.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Import modal ───────────────────────────────────── -->
+      <div class="modal-overlay hidden" id="import-modal">
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Import Content</h3>
+            <button class="btn-close" id="import-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="import-tabs">
+              <button class="import-tab active" data-import="markdown">
                 Markdown
               </button>
+              <button class="import-tab" data-import="html">HTML</button>
             </div>
-            <div class="panel-actions">
-              <button class="btn" id="copy-btn">Copy</button>
-              <button class="btn primary" id="download-btn">
-                Download .it
-              </button>
-            </div>
-          </div>
-
-          <!-- web-to-it: IT source output (Monaco, readonly) -->
-          <div class="tab-pane active" id="pane-it-output" data-mode="wti">
-            <div id="it-output-editor" class="monaco-container"></div>
-          </div>
-
-          <!-- web-to-it: IT preview -->
-          <div class="tab-pane" id="pane-it-output-preview" data-mode="wti">
-            <div id="output-preview" class="preview-area">
-              <p class="preview-empty">
-                Preview will appear here once you add content…
-              </p>
-            </div>
-          </div>
-
-          <!-- it-to-web: HTML output -->
-          <div class="tab-pane" id="pane-html-output" data-mode="itw">
-            <div
-              id="html-output-content"
-              class="html-output preview-area"
-            ></div>
-          </div>
-
-          <!-- it-to-web: Markdown output -->
-          <div class="tab-pane" id="pane-md-output" data-mode="itw">
             <textarea
-              id="md-output-area"
-              class="md-editor"
-              readonly
-              placeholder="Markdown output will appear here…"
+              id="import-input"
+              class="import-textarea"
+              placeholder="Paste your Markdown here…"
             ></textarea>
           </div>
+          <div class="modal-footer">
+            <button class="btn" id="import-cancel">Cancel</button>
+            <button class="btn primary" id="import-confirm">
+              Convert &amp; Insert
+            </button>
+          </div>
+        </div>
+      </div>
 
-          <div class="stats-bar" id="stats-bar">
-            0 blocks · 0 lines · 0 chars
+      <!-- ── Help modal ─────────────────────────────────────── -->
+      <div class="modal-overlay hidden" id="help-modal">
+        <div class="modal modal-lg">
+          <div class="modal-header">
+            <h3>IntentText Quick Reference</h3>
+            <button class="btn-close" id="help-close">✕</button>
+          </div>
+          <div class="modal-body help-body">
+            <div class="help-section">
+              <h4>Structure</h4>
+              <div class="help-row">
+                <code>title: My Document</code>
+                <span>Document title (H1)</span>
+              </div>
+              <div class="help-row">
+                <code>section: Chapter One</code>
+                <span>Section heading (H2)</span>
+              </div>
+              <div class="help-row">
+                <code>sub: Details</code>
+                <span>Subsection (H3)</span>
+              </div>
+              <div class="help-row">
+                <code>---</code><span>Horizontal divider</span>
+              </div>
+            </div>
+            <div class="help-section">
+              <h4>Content</h4>
+              <div class="help-row">
+                <code>note: Some text here</code>
+                <span>Paragraph / note</span>
+              </div>
+              <div class="help-row">
+                <code>quote: Words of wisdom</code>
+                <span>Blockquote</span>
+              </div>
+              <div class="help-row">
+                <code>summary: Key takeaway</code>
+                <span>Summary box</span>
+              </div>
+              <div class="help-row">
+                <code>question: How does this work?</code>
+                <span>Question callout</span>
+              </div>
+            </div>
+            <div class="help-section">
+              <h4>Tasks</h4>
+              <div class="help-row">
+                <code>task: Do something | owner: Ahmed | due: 2026-03-15</code>
+                <span>Open task with metadata</span>
+              </div>
+              <div class="help-row">
+                <code>done: Finished this | time: 2h</code>
+                <span>Completed task</span>
+              </div>
+              <div class="help-row">
+                <code>[ ] Quick task @owner !high</code>
+                <span>Checkbox shorthand</span>
+              </div>
+              <div class="help-row">
+                <code>[x] Completed checkbox</code>
+                <span>Done checkbox</span>
+              </div>
+            </div>
+            <div class="help-section">
+              <h4>Callouts</h4>
+              <div class="help-row">
+                <code>info: Informational note</code>
+                <span class="help-color info">ℹ️ Info block</span>
+              </div>
+              <div class="help-row">
+                <code>warning: Be careful</code>
+                <span class="help-color warning">⚠️ Warning block</span>
+              </div>
+              <div class="help-row">
+                <code>tip: Pro tip here</code>
+                <span class="help-color tip">💡 Tip block</span>
+              </div>
+              <div class="help-row">
+                <code>success: It worked!</code>
+                <span class="help-color success">✅ Success block</span>
+              </div>
+            </div>
+            <div class="help-section">
+              <h4>Formatting</h4>
+              <div class="help-row">
+                <code>*bold text*</code><span>Bold</span>
+              </div>
+              <div class="help-row">
+                <code>_italic text_</code><span>Italic</span>
+              </div>
+              <div class="help-row">
+                <code>~strikethrough~</code><span>Strikethrough</span>
+              </div>
+              <div class="help-row">
+                <code>`inline code`</code><span>Inline code</span>
+              </div>
+              <div class="help-row">
+                <code>[Link text](https://url.com)</code>
+                <span>Inline link</span>
+              </div>
+            </div>
+            <div class="help-section">
+              <h4>Tables</h4>
+              <div class="help-row">
+                <code>| Name | Age | City |</code>
+                <span>First row = headers</span>
+              </div>
+              <div class="help-row">
+                <code>| Ahmed | 30 | Dubai |</code>
+                <span>Data rows follow</span>
+              </div>
+            </div>
+            <div class="help-section">
+              <h4>Metadata (pipe syntax)</h4>
+              <div class="help-row">
+                <code>task: Build feature | owner: Sarah | priority: high</code>
+                <span>Add properties with |</span>
+              </div>
+              <div class="help-row">
+                <code>image: Logo | at: logo.png | caption: Our logo</code>
+                <span>Image with attributes</span>
+              </div>
+              <div class="help-row">
+                <code>link: Homepage | to: https://example.com</code>
+                <span>Named link</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

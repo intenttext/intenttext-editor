@@ -3,739 +3,812 @@ import {
   parseIntentText,
   renderHTML,
   convertMarkdownToIntentText,
+  queryBlocks,
 } from "@intenttext/core";
+import type { IntentDocument, IntentBlock } from "@intenttext/core";
 import { convertHtmlToIntentText } from "./html-converter";
+import { TEMPLATES } from "./templates";
 
-// Minimal blob worker
-(window as any).MonacoEnvironment = {
-  getWorker(_moduleId: string, _label: string): Worker {
-    return new Worker(
-      URL.createObjectURL(
-        new Blob(["self.onmessage = function() {};"], {
-          type: "application/javascript",
-        }),
-      ),
-    );
-  },
-};
+// ── Constants ──────────────────────────────────────────────
+const AUTOSAVE_KEY = "intenttext-doc";
+const AUTOSAVE_DELAY = 800; // ms
 
-type Mode = "web-to-it" | "it-to-web";
+// ── Monaco language registration ───────────────────────────
+function registerIntentTextLanguage(): void {
+  monaco.languages.register({ id: "intenttext" });
 
-const EXAMPLE_IT = `title: Project Kickoff Notes
+  monaco.languages.setMonarchTokensProvider("intenttext", {
+    tokenizer: {
+      root: [
+        // Structural keywords
+        [/^(title|section|sub):/, "keyword.structure"],
+        // Task keywords
+        [/^(task|done):/, "keyword.task"],
+        // Checkbox shorthand
+        [/^\[[ x]\]/, "keyword.task"],
+        // Content keywords
+        [/^(note|quote|summary|question|ask):/, "keyword.content"],
+        // Callout keywords
+        [/^(info|warning|tip|success):/, "keyword.callout"],
+        // Media & link keywords
+        [/^(link|image|code|end):/, "keyword.media"],
+        // Divider
+        [/^---+$/, "keyword.divider"],
+        // Table rows
+        [/^\|/, "keyword.table"],
+        // Metadata pipes
+        [/\|/, "delimiter.pipe"],
+        // Metadata keys
+        [
+          /\b(owner|due|priority|time|status|at|to|caption)(?=:)/,
+          "type.metadata",
+        ],
+        // Shorthand tokens
+        [/@\w+/, "type.owner"],
+        [/!\w+/, "type.priority"],
+        // Inline formatting
+        [/\*[^*]+\*/, "strong"],
+        [/_[^_]+_/, "emphasis"],
+        [/~[^~]+~/, "strikethrough"],
+        [/`[^`]+`/, "string.code"],
+        // Inline links [text](url)
+        [/\[[^\]]+\]\([^)]+\)/, "string.link"],
+        // Comments
+        [/^\/\/.*$/, "comment"],
+      ],
+    },
+  });
 
-section: Overview
-note: This document demonstrates IntentText — a *human-readable*, _structured_ document format.
-note: Every line begins with a keyword like *title:*, *note:*, or *task:*.
+  monaco.editor.defineTheme("it-light", {
+    base: "vs",
+    inherit: true,
+    rules: [
+      { token: "keyword.structure", foreground: "6D28D9", fontStyle: "bold" },
+      { token: "keyword.task", foreground: "D97706", fontStyle: "bold" },
+      { token: "keyword.content", foreground: "2563EB" },
+      { token: "keyword.callout", foreground: "059669", fontStyle: "bold" },
+      { token: "keyword.media", foreground: "7C3AED" },
+      { token: "keyword.divider", foreground: "9CA3AF" },
+      { token: "keyword.table", foreground: "6366F1" },
+      { token: "delimiter.pipe", foreground: "9CA3AF" },
+      { token: "type.metadata", foreground: "0891B2" },
+      { token: "type.owner", foreground: "DB2777" },
+      { token: "type.priority", foreground: "DC2626" },
+      { token: "strong", fontStyle: "bold" },
+      { token: "emphasis", fontStyle: "italic" },
+      { token: "strikethrough", foreground: "9CA3AF" },
+      { token: "string.code", foreground: "059669" },
+      { token: "string.link", foreground: "6D28D9" },
+      { token: "comment", foreground: "9CA3AF", fontStyle: "italic" },
+    ],
+    colors: {
+      "editor.background": "#FFFFFF",
+      "editor.lineHighlightBackground": "#F8FAFC",
+    },
+  });
+}
 
-section: Action Items
-task: Set up CI/CD pipeline | owner: Ahmed | due: 2026-03-15 | priority: high
-task: Write API documentation | owner: Sarah | priority: medium
-done: Repository setup | owner: Ahmed | time: 1h
-[ ] Review architecture proposal @mike !high
+// ── Helper: IntentText to Markdown ─────────────────────────
+function convertToMarkdown(doc: IntentDocument): string {
+  const lines: string[] = [];
+  for (const block of doc.blocks) {
+    const content = block.content ?? "";
+    const props = block.properties ?? {};
+    switch (block.type) {
+      case "title":
+        lines.push(`# ${content}`);
+        break;
+      case "section":
+        lines.push(`\n## ${content}`);
+        break;
+      case "sub":
+        lines.push(`\n### ${content}`);
+        break;
+      case "note":
+      case "body-text":
+        lines.push(`\n${content}`);
+        break;
+      case "task": {
+        const parts = [`- [ ] ${content}`];
+        if (props.owner) parts.push(`*(${props.owner})*`);
+        if (props.due) parts.push(`[due: ${props.due}]`);
+        lines.push(parts.join(" "));
+        break;
+      }
+      case "done": {
+        const parts = [`- [x] ~~${content}~~`];
+        if (props.owner) parts.push(`*(${props.owner})*`);
+        lines.push(parts.join(" "));
+        break;
+      }
+      case "quote":
+        lines.push(`\n> ${content}`);
+        break;
+      case "summary":
+        lines.push(`\n> **Summary:** ${content}`);
+        break;
+      case "ask":
+        lines.push(`\n> **Question:** ${content}`);
+        break;
+      case "info":
+        lines.push(`\n> **Info:** ${content}`);
+        break;
+      case "warning":
+        lines.push(`\n> **Warning:** ${content}`);
+        break;
+      case "tip":
+        lines.push(`\n> **Tip:** ${content}`);
+        break;
+      case "success":
+        lines.push(`\n> **Success:** ${content}`);
+        break;
+      case "link":
+        lines.push(`[${content}](${props.to ?? props.url ?? "#"})`);
+        break;
+      case "image":
+        lines.push(
+          `![${props.caption ?? content}](${props.at ?? props.src ?? ""})`,
+        );
+        break;
+      case "divider":
+        lines.push("\n---\n");
+        break;
+      case "table":
+        if (block.table && block.table.rows.length > 0) {
+          if (block.table.headers) {
+            lines.push(`| ${block.table.headers.join(" | ")} |`);
+            lines.push(
+              `| ${block.table.headers.map(() => "---").join(" | ")} |`,
+            );
+          }
+          for (const row of block.table.rows) {
+            lines.push(`| ${row.join(" | ")} |`);
+          }
+        }
+        break;
+      case "code":
+        lines.push("```");
+        lines.push(content);
+        lines.push("```");
+        break;
+      default:
+        if (content) lines.push(content);
+    }
+  }
+  return lines.join("\n").trim();
+}
 
-section: Discussion
-question: Should we use REST or GraphQL for the public API?
-quote: Keep it simple — start with REST, add GraphQL later if needed.
-
-info: All decisions are tracked in this document.
-warning: Deadline for Phase 1 is March 31, 2026.
-tip: Use pipe | to add metadata to any block.
-
----
-
-| Feature | Status | Owner |
-| Parser | Done | Ahmed |
-| Renderer | Done | Sarah |
-| Query Engine | Done | Mike |
-
-summary: Kickoff complete. Next sync on Monday.`;
-
-const EXAMPLE_MD = `# Project Kickoff Notes
-
-## Overview
-
-This document demonstrates IntentText — a **human-readable**, *structured* document format.
-
-Every line begins with a keyword like **title:**, **note:**, or **task:**.
-
-## Action Items
-
-- [ ] Set up CI/CD pipeline
-- [ ] Write API documentation
-- [x] Repository setup
-
-## Discussion
-
-> Should we use REST or GraphQL for the public API?
-
----
-
-| Feature | Status | Owner |
-|---------|--------|-------|
-| Parser | Done | Ahmed |
-| Renderer | Done | Sarah |
-
-*Kickoff complete. Next sync on Monday.*`;
-
+// ── Main App ───────────────────────────────────────────────
 export class IntentTextApp {
-  private mode: Mode = "web-to-it";
-  private inputItEditor!: monaco.editor.IStandaloneCodeEditor;
-  private outputItEditor!: monaco.editor.IStandaloneCodeEditor;
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private editor!: monaco.editor.IStandaloneCodeEditor;
+  private currentDoc: IntentDocument | null = null;
+  private autosaveTimer: number | null = null;
+  private queryOpen = false;
+  private importMode: "markdown" | "html" = "markdown";
 
   constructor() {
-    this.registerLanguage();
-    this.initMonaco();
+    registerIntentTextLanguage();
+    this.createEditor();
     this.bindEvents();
-    this.setMode("web-to-it");
+    this.buildTemplateMenu();
+    this.loadAutosave();
+    this.updatePreview();
+
+    // Resize Monaco on window resize
+    window.addEventListener("resize", () => this.editor.layout());
   }
 
-  private registerLanguage(): void {
-    monaco.languages.register({ id: "intenttext" });
-    monaco.languages.setMonarchTokensProvider("intenttext", {
-      tokenizer: {
-        root: [
-          [/^\/\/.*$/, "comment"],
-          [/^---$/, "keyword.divider"],
-          [/^```.*$/, "string"],
-          [
-            /^(title|section|sub|subsection|note|task|done|ask|question|quote|image|link|ref|summary|info|warning|tip|success|headers|row|embed|code|end):/,
-            "keyword",
-          ],
-          [/^\[[ x]\]/, "keyword"],
-          [/\|/, "operator"],
-          [/\*[^*\n]+\*/, "strong"],
-          [/_[^_\n]+_/, "emphasis"],
-          [/~[^~\n]+~/, "invalid.deprecated"],
-          [/`[^`\n]+`/, "string.code"],
-          [/\[[^\]]+\]\([^)]+\)/, "string.link"],
-        ],
-      },
-    });
-    monaco.editor.defineTheme("it-light", {
-      base: "vs",
-      inherit: true,
-      rules: [
-        { token: "keyword", foreground: "5b21b6", fontStyle: "bold" },
-        { token: "keyword.divider", foreground: "94a3b8" },
-        { token: "comment", foreground: "94a3b8", fontStyle: "italic" },
-        { token: "operator", foreground: "cbd5e1" },
-        { token: "strong", foreground: "0f172a", fontStyle: "bold" },
-        { token: "emphasis", foreground: "475569", fontStyle: "italic" },
-        { token: "string", foreground: "15803d" },
-        { token: "string.code", foreground: "7c3aed" },
-        { token: "string.link", foreground: "4f46e5" },
-        { token: "invalid.deprecated", foreground: "9f1239" },
-      ],
-      colors: {
-        "editor.background": "#ffffff",
-        "editor.lineHighlightBackground": "#f8fafc",
-      },
-    });
-  }
-
-  private monacoOptions(
-    readOnly: boolean,
-  ): monaco.editor.IStandaloneEditorConstructionOptions {
-    return {
+  // ── Editor setup ──────────────────────────────────────────
+  private createEditor(): void {
+    const container = document.getElementById("monaco-editor")!;
+    this.editor = monaco.editor.create(container, {
+      value: "",
       language: "intenttext",
       theme: "it-light",
-      readOnly,
-      fontSize: 13,
-      lineHeight: 21,
+      fontSize: 14,
+      lineHeight: 22,
+      fontFamily: '"SF Mono", "Fira Code", "JetBrains Mono", monospace',
       minimap: { enabled: false },
-      scrollBeyondLastLine: false,
       wordWrap: "on",
+      padding: { top: 12, bottom: 12 },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
       renderLineHighlight: "line",
-      padding: { top: 14, bottom: 14 },
-      fontFamily: '"Monaco", "Menlo", "Consolas", monospace',
+      suggestOnTriggerCharacters: false,
+      quickSuggestions: false,
+      tabSize: 2,
+      lineNumbers: "off",
+      glyphMargin: false,
+      folding: false,
+      lineDecorationsWidth: 8,
+      overviewRulerLanes: 0,
+      hideCursorInOverviewRuler: true,
+      overviewRulerBorder: false,
       scrollbar: {
-        verticalScrollbarSize: 6,
-        horizontalScrollbarSize: 6,
+        verticalScrollbarSize: 8,
+        horizontalScrollbarSize: 8,
       },
-    };
-  }
+    });
 
-  private initMonaco(): void {
-    this.outputItEditor = monaco.editor.create(
-      document.getElementById("it-output-editor")!,
-      this.monacoOptions(true),
-    );
-    this.inputItEditor = monaco.editor.create(
-      document.getElementById("it-input-editor")!,
-      this.monacoOptions(false),
-    );
-    this.inputItEditor.onDidChangeModelContent(() => {
-      if (this.mode === "it-to-web") {
-        this.debounce(() => this.convertItToWeb(), 300);
-      }
+    // Live preview on change
+    this.editor.onDidChangeModelContent(() => {
+      this.updatePreview();
+      this.scheduleAutosave();
     });
   }
 
+  // ── Bind all UI events ────────────────────────────────────
   private bindEvents(): void {
-    // Mode toggle
+    // Keyword toolbar
     document
-      .querySelectorAll<HTMLElement>(".mode-btn[data-mode]")
-      .forEach((btn) => {
-        btn.addEventListener("click", () =>
-          this.setMode(btn.dataset.mode as Mode),
-        );
+      .getElementById("keyword-toolbar")!
+      .addEventListener("click", (e) => {
+        const btn = (e.target as HTMLElement).closest(
+          ".kw-btn",
+        ) as HTMLElement | null;
+        if (btn) {
+          const kw = btn.dataset.kw ?? "";
+          this.insertAtCursor(kw);
+        }
       });
 
-    // Tab switching
-    document.querySelectorAll<HTMLElement>("[data-tab]").forEach((btn) => {
-      btn.addEventListener("click", () => this.switchTab(btn));
+    // New / template dropdown
+    this.setupDropdown("new-btn", "new-menu");
+
+    // Export dropdown
+    this.setupDropdown("export-btn", "export-menu");
+    document.getElementById("export-menu")!.addEventListener("click", (e) => {
+      const item = (e.target as HTMLElement).closest(
+        "[data-export]",
+      ) as HTMLElement | null;
+      if (item) {
+        this.handleExport(item.dataset.export!);
+        this.closeDropdowns();
+      }
     });
 
-    // HTML editor
-    const htmlEditor = document.getElementById("html-editor")!;
-    htmlEditor.addEventListener("paste", (e) =>
-      this.handleHtmlPaste(e as ClipboardEvent),
-    );
-    htmlEditor.addEventListener("input", () =>
-      this.debounce(() => this.convertWebToIt(), 300),
-    );
+    // Open file
+    document
+      .getElementById("open-btn")!
+      .addEventListener("click", () => this.openFile());
 
-    // Markdown input
+    // Save file
     document
-      .getElementById("md-input-area")!
-      .addEventListener("input", () =>
-        this.debounce(() => this.convertWebToIt(), 300),
-      );
+      .getElementById("save-btn")!
+      .addEventListener("click", () => this.saveFile());
 
-    // Toolbar
+    // Import
     document
-      .getElementById("clear-btn")!
-      .addEventListener("click", () => this.clear());
+      .getElementById("import-btn")!
+      .addEventListener("click", () => this.showModal("import-modal"));
     document
-      .getElementById("copy-btn")!
-      .addEventListener("click", () => this.copy());
+      .getElementById("import-close")!
+      .addEventListener("click", () => this.hideModal("import-modal"));
     document
-      .getElementById("download-btn")!
-      .addEventListener("click", () => this.download());
+      .getElementById("import-cancel")!
+      .addEventListener("click", () => this.hideModal("import-modal"));
     document
-      .getElementById("example-btn")!
-      .addEventListener("click", () => this.loadExample());
+      .getElementById("import-confirm")!
+      .addEventListener("click", () => this.handleImport());
 
-    this.setupDragDrop();
+    // Import tabs
+    document.querySelectorAll(".import-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document
+          .querySelectorAll(".import-tab")
+          .forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        this.importMode = (tab as HTMLElement).dataset.import as
+          | "markdown"
+          | "html";
+        const textarea = document.getElementById(
+          "import-input",
+        ) as HTMLTextAreaElement;
+        textarea.placeholder =
+          this.importMode === "html"
+            ? "Paste your HTML here\u2026"
+            : "Paste your Markdown here\u2026";
+      });
+    });
 
-    window.addEventListener("resize", () => {
-      this.inputItEditor.layout();
-      this.outputItEditor.layout();
+    // Query panel
+    document
+      .getElementById("query-btn")!
+      .addEventListener("click", () => this.toggleQuery());
+    document
+      .getElementById("query-close")!
+      .addEventListener("click", () => this.toggleQuery());
+    document
+      .getElementById("query-apply")!
+      .addEventListener("click", () => this.runQuery());
+
+    // Help modal
+    document
+      .getElementById("help-btn")!
+      .addEventListener("click", () => this.showModal("help-modal"));
+    document
+      .getElementById("help-close")!
+      .addEventListener("click", () => this.hideModal("help-modal"));
+
+    // Modal overlay click-to-close
+    document.querySelectorAll(".modal-overlay").forEach((overlay) => {
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          (overlay as HTMLElement).classList.add("hidden");
+        }
+      });
+    });
+
+    // Preview tabs
+    document.querySelectorAll(".preview-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const target = (tab as HTMLElement).dataset.preview!;
+        document
+          .querySelectorAll(".preview-tab")
+          .forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        document
+          .querySelectorAll(".preview-content")
+          .forEach((c) => c.classList.remove("active"));
+        document
+          .querySelector(`.preview-content[data-preview="${target}"]`)!
+          .classList.add("active");
+      });
+    });
+
+    // Close dropdowns on outside click
+    document.addEventListener("click", (e) => {
+      if (!(e.target as HTMLElement).closest(".dropdown")) {
+        this.closeDropdowns();
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        this.saveFile();
+      }
+      if (e.key === "Escape") {
+        this.closeDropdowns();
+        document
+          .querySelectorAll(".modal-overlay")
+          .forEach((m) => m.classList.add("hidden"));
+      }
+    });
+
+    // Resize handle
+    this.setupResizeHandle();
+  }
+
+  // ── Dropdown helper ───────────────────────────────────────
+  private setupDropdown(btnId: string, menuId: string): void {
+    const btn = document.getElementById(btnId)!;
+    const menu = document.getElementById(menuId)!;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = menu.classList.contains("open");
+      this.closeDropdowns();
+      if (!isOpen) menu.classList.add("open");
     });
   }
 
-  /* ------------------------------------------------------------ *
-   *  Mode & tab management
-   * ------------------------------------------------------------ */
-
-  private setMode(mode: Mode): void {
-    this.mode = mode;
-
-    // Toggle mode buttons
+  private closeDropdowns(): void {
     document
-      .querySelectorAll<HTMLElement>(".mode-btn[data-mode]")
-      .forEach((btn) =>
-        btn.classList.toggle("active", btn.dataset.mode === mode),
-      );
-
-    const isWti = mode === "web-to-it";
-
-    // Show / hide tab groups
-    document.getElementById("wti-input-tabs")!.hidden = !isWti;
-    document.getElementById("itw-input-tabs")!.hidden = isWti;
-    document.getElementById("wti-output-tabs")!.hidden = !isWti;
-    document.getElementById("itw-output-tabs")!.hidden = isWti;
-
-    // Deactivate all panes and tab buttons
-    document
-      .querySelectorAll<HTMLElement>(".tab-pane")
-      .forEach((p) => p.classList.remove("active"));
-    document
-      .querySelectorAll<HTMLElement>(".tab-btn[data-tab]")
-      .forEach((btn) => btn.classList.remove("active"));
-
-    // Activate defaults for the selected mode
-    if (isWti) {
-      this.activatePane("pane-html-input");
-      this.activatePane("pane-it-output");
-      this.activateFirstTabBtn("wti-input-tabs");
-      this.activateFirstTabBtn("wti-output-tabs");
-    } else {
-      this.activatePane("pane-it-input");
-      this.activatePane("pane-html-output");
-      this.activateFirstTabBtn("itw-input-tabs");
-      this.activateFirstTabBtn("itw-output-tabs");
-    }
-
-    document.getElementById("download-btn")!.textContent = isWti
-      ? "Download .it"
-      : "Download";
-
-    requestAnimationFrame(() => {
-      this.inputItEditor.layout();
-      this.outputItEditor.layout();
-      if (isWti) this.convertWebToIt();
-      else this.convertItToWeb();
-    });
+      .querySelectorAll(".dropdown-menu")
+      .forEach((m) => m.classList.remove("open"));
   }
 
-  private activatePane(paneId: string): void {
-    document.getElementById(paneId)?.classList.add("active");
-  }
-
-  private activateFirstTabBtn(tabsId: string): void {
-    document
-      .querySelector<HTMLElement>(`#${tabsId} .tab-btn`)
-      ?.classList.add("active");
-  }
-
-  private switchTab(btn: HTMLElement): void {
-    const targetPane = btn.dataset.tab!;
-    const tabsContainer = btn.parentElement!;
-
-    // Deactivate sibling tab buttons
-    tabsContainer
-      .querySelectorAll<HTMLElement>(".tab-btn")
-      .forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    // Deactivate sibling panes within the same panel & mode
-    const panel = tabsContainer.closest(".panel")!;
-    const modeAttr = this.mode === "web-to-it" ? "wti" : "itw";
-    panel
-      .querySelectorAll<HTMLElement>(`.tab-pane[data-mode="${modeAttr}"]`)
-      .forEach((p) => p.classList.remove("active"));
-
-    document.getElementById(targetPane)?.classList.add("active");
-
-    requestAnimationFrame(() => {
-      this.inputItEditor.layout();
-      this.outputItEditor.layout();
-    });
-
-    // Render preview if switching to a preview tab
-    if (targetPane === "pane-it-input-preview") this.renderInputPreview();
-    else if (targetPane === "pane-it-output-preview")
-      this.renderOutputPreview();
-  }
-
-  /* ------------------------------------------------------------ *
-   *  Conversion logic
-   * ------------------------------------------------------------ */
-
-  private convertWebToIt(): void {
-    let itText = "";
-    const htmlActive = document
-      .getElementById("pane-html-input")!
-      .classList.contains("active");
-
-    if (htmlActive) {
-      const html = document.getElementById("html-editor")!.innerHTML;
-      if (html && html !== "<br>") itText = convertHtmlToIntentText(html);
-    } else {
-      const md = (
-        document.getElementById("md-input-area") as HTMLTextAreaElement
-      ).value;
-      if (md.trim()) itText = convertMarkdownToIntentText(md);
-    }
-
-    this.outputItEditor.setValue(itText);
-    this.updateStats(itText);
-
-    if (
-      document
-        .getElementById("pane-it-output-preview")!
-        .classList.contains("active")
-    ) {
-      this.renderOutputPreview();
+  // ── Template menu ─────────────────────────────────────────
+  private buildTemplateMenu(): void {
+    const menu = document.getElementById("new-menu")!;
+    menu.innerHTML = "";
+    for (const tpl of TEMPLATES) {
+      const item = document.createElement("button");
+      item.className = "dropdown-item";
+      item.innerHTML = `<span class="template-icon">${tpl.icon}</span>${tpl.name}<span class="template-desc">${tpl.description}</span>`;
+      item.addEventListener("click", () => {
+        this.editor.setValue(tpl.content);
+        this.editor.setPosition({ lineNumber: 1, column: 1 });
+        this.editor.focus();
+        this.closeDropdowns();
+      });
+      menu.appendChild(item);
     }
   }
 
-  private convertItToWeb(): void {
-    const itText = this.inputItEditor.getValue();
+  // ── Insert at cursor ──────────────────────────────────────
+  private insertAtCursor(text: string): void {
+    const position = this.editor.getPosition();
+    if (!position) return;
 
-    if (!itText.trim()) {
-      document.getElementById("html-output-content")!.innerHTML = "";
-      (document.getElementById("md-output-area") as HTMLTextAreaElement).value =
-        "";
-      this.updateStats("");
+    const model = this.editor.getModel();
+    if (!model) return;
+
+    // If at start of a non-empty line, insert on a new line above
+    const lineContent = model.getLineContent(position.lineNumber);
+    const isStartOfLine = position.column === 1;
+    const isEmptyLine = lineContent.trim() === "";
+
+    let insertText = text;
+    let insertPosition = position;
+
+    if (!isEmptyLine && isStartOfLine) {
+      // Insert before current line
+      insertText = text + (text.endsWith("\n") ? "" : "\n");
+    } else if (!isEmptyLine) {
+      // Insert on next line
+      insertText = "\n" + text;
+    }
+
+    this.editor.executeEdits("keyword-toolbar", [
+      {
+        range: new monaco.Range(
+          insertPosition.lineNumber,
+          insertPosition.column,
+          insertPosition.lineNumber,
+          insertPosition.column,
+        ),
+        text: insertText,
+        forceMoveMarkers: true,
+      },
+    ]);
+
+    this.editor.focus();
+  }
+
+  // ── Live preview ──────────────────────────────────────────
+  private updatePreview(): void {
+    const source = this.editor.getValue();
+
+    // Parse
+    let doc: IntentDocument;
+    try {
+      doc = parseIntentText(source);
+    } catch {
       return;
     }
+    this.currentDoc = doc;
 
+    // Rendered preview
+    const rendered = document.getElementById("preview-rendered")!;
+    if (!source.trim()) {
+      rendered.innerHTML =
+        '<p class="preview-empty">Start writing on the left to see a live preview\u2026</p>';
+    } else {
+      rendered.innerHTML = renderHTML(doc);
+    }
+
+    // HTML code view
+    const htmlCode = document.getElementById("html-code")!;
+    htmlCode.textContent = source.trim() ? renderHTML(doc) : "";
+
+    // Markdown view
+    const mdCode = document.getElementById("markdown-code")!;
+    mdCode.textContent = source.trim() ? convertToMarkdown(doc) : "";
+
+    // Stats
+    const stats = document.getElementById("stats")!;
+    const lineCount = source.split("\n").length;
+    const blockCount = doc.blocks.length;
+    stats.textContent = `${blockCount} block${blockCount !== 1 ? "s" : ""} \u00B7 ${lineCount} line${lineCount !== 1 ? "s" : ""}`;
+  }
+
+  // ── Autosave ──────────────────────────────────────────────
+  private scheduleAutosave(): void {
+    if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
+    const statusEl = document.getElementById("save-status")!;
+    statusEl.textContent = "";
+    this.autosaveTimer = window.setTimeout(() => {
+      try {
+        localStorage.setItem(AUTOSAVE_KEY, this.editor.getValue());
+        statusEl.textContent = "Saved";
+        setTimeout(() => {
+          statusEl.textContent = "";
+        }, 2000);
+      } catch {
+        // localStorage full or unavailable
+      }
+    }, AUTOSAVE_DELAY);
+  }
+
+  private loadAutosave(): void {
     try {
-      const doc = parseIntentText(itText);
-      document.getElementById("html-output-content")!.innerHTML =
-        renderHTML(doc);
-      (document.getElementById("md-output-area") as HTMLTextAreaElement).value =
-        this.convertToMarkdown(doc);
-      this.updateStats(itText);
-    } catch (err) {
-      console.error("Parse error:", err);
+      const saved = localStorage.getItem(AUTOSAVE_KEY);
+      if (saved) {
+        this.editor.setValue(saved);
+      }
+    } catch {
+      // Ignore
     }
   }
 
-  private convertToMarkdown(doc: any): string {
-    const lines: string[] = [];
-    if (!doc.blocks) return "";
-
-    for (const block of doc.blocks) {
-      const props = block.properties || {};
-      switch (block.type) {
-        case "title":
-          lines.push(`# ${block.content}`, "");
-          break;
-        case "section":
-          lines.push(`## ${block.content}`, "");
-          break;
-        case "sub":
-          lines.push(`### ${block.content}`, "");
-          break;
-        case "note":
-        case "body-text":
-          lines.push(block.content, "");
-          break;
-        case "task": {
-          const meta = this.fmtProps(props, ["owner", "due", "priority"]);
-          lines.push(`- [ ] ${block.content}${meta}`);
-          break;
-        }
-        case "done": {
-          const meta = this.fmtProps(props, ["owner", "time"]);
-          lines.push(`- [x] ${block.content}${meta}`);
-          break;
-        }
-        case "question":
-        case "ask":
-          lines.push(`> **Q:** ${block.content}`, "");
-          break;
-        case "quote":
-          lines.push(`> ${block.content}`, "");
-          break;
-        case "summary":
-          lines.push(`> **Summary:** ${block.content}`, "");
-          break;
-        case "code":
-          lines.push("```");
-          if (block.content) lines.push(block.content);
-          lines.push("```", "");
-          break;
-        case "link":
-          lines.push(`[${block.content}](${props.to || ""})`, "");
-          break;
-        case "image":
-          lines.push(`![${block.content}](${props.at || ""})`, "");
-          break;
-        case "info":
-          lines.push(`> **ℹ️ Info:** ${block.content}`, "");
-          break;
-        case "warning":
-          lines.push(`> **⚠️ Warning:** ${block.content}`, "");
-          break;
-        case "tip":
-          lines.push(`> **💡 Tip:** ${block.content}`, "");
-          break;
-        case "success":
-          lines.push(`> **✅ Success:** ${block.content}`, "");
-          break;
-        case "table":
-          if (block.table) {
-            const { headers, rows } = block.table;
-            if (headers?.length) {
-              lines.push(`| ${headers.join(" | ")} |`);
-              lines.push(`| ${headers.map(() => "---").join(" | ")} |`);
-            }
-            for (const row of rows || []) lines.push(`| ${row.join(" | ")} |`);
-            lines.push("");
-          }
-          break;
-        case "divider":
-          lines.push("---", "");
-          break;
-        default:
-          if (block.content) lines.push(block.content, "");
+  // ── File operations ───────────────────────────────────────
+  private async openFile(): Promise<void> {
+    // Try File System Access API first
+    if ("showOpenFilePicker" in window) {
+      try {
+        const [handle] = await (window as any).showOpenFilePicker({
+          types: [
+            {
+              description: "IntentText files",
+              accept: { "text/plain": [".it", ".txt"] },
+            },
+          ],
+        });
+        const file = await handle.getFile();
+        const text = await file.text();
+        this.editor.setValue(text);
+        this.editor.focus();
+        return;
+      } catch {
+        // User cancelled or API not available
+        return;
       }
     }
-    return lines.join("\n").trim();
+
+    // Fallback: file input
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".it,.txt,.md";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (file) {
+        const text = await file.text();
+        this.editor.setValue(text);
+        this.editor.focus();
+      }
+    };
+    input.click();
   }
 
-  private fmtProps(props: Record<string, string>, keys: string[]): string {
-    const parts = keys.filter((k) => props[k]).map((k) => `${k}: ${props[k]}`);
-    return parts.length ? ` *(${parts.join(", ")})* ` : "";
-  }
+  private async saveFile(): Promise<void> {
+    const source = this.editor.getValue();
 
-  /* ------------------------------------------------------------ *
-   *  Preview rendering
-   * ------------------------------------------------------------ */
-
-  private renderInputPreview(): void {
-    const itText = this.inputItEditor.getValue();
-    const el = document.getElementById("input-preview")!;
-    if (!itText.trim()) {
-      el.innerHTML =
-        '<p class="preview-empty">Preview will appear here once you add content…</p>';
-      return;
+    // Try File System Access API
+    if ("showSaveFilePicker" in window) {
+      try {
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName: "document.it",
+          types: [
+            {
+              description: "IntentText file",
+              accept: { "text/plain": [".it"] },
+            },
+          ],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(source);
+        await writable.close();
+        const statusEl = document.getElementById("save-status")!;
+        statusEl.textContent = "File saved";
+        setTimeout(() => {
+          statusEl.textContent = "";
+        }, 2000);
+        return;
+      } catch {
+        return; // User cancelled
+      }
     }
-    el.innerHTML = renderHTML(parseIntentText(itText));
+
+    // Fallback: download
+    this.downloadFile(source, "document.it", "text/plain");
   }
 
-  private renderOutputPreview(): void {
-    const itText = this.outputItEditor.getValue();
-    const el = document.getElementById("output-preview")!;
-    if (!itText.trim()) {
-      el.innerHTML =
-        '<p class="preview-empty">Preview will appear here once you add content…</p>';
-      return;
-    }
-    el.innerHTML = renderHTML(parseIntentText(itText));
-  }
+  // ── Export ────────────────────────────────────────────────
+  private handleExport(format: string): void {
+    const source = this.editor.getValue();
+    if (!source.trim()) return;
 
-  /* ------------------------------------------------------------ *
-   *  Stats
-   * ------------------------------------------------------------ */
-
-  private updateStats(itText: string): void {
-    const doc = itText.trim() ? parseIntentText(itText) : null;
-    const blocks = doc?.blocks.length ?? 0;
-    const lineCount = itText.split("\n").filter((l) => l.trim()).length;
-    document.getElementById("stats-bar")!.textContent =
-      `${blocks} blocks · ${lineCount} lines · ${itText.length} chars`;
-  }
-
-  /* ------------------------------------------------------------ *
-   *  Paste handling
-   * ------------------------------------------------------------ */
-
-  private handleHtmlPaste(e: ClipboardEvent): void {
-    e.preventDefault();
-    const htmlEditor = document.getElementById("html-editor")!;
-    const html = e.clipboardData?.getData("text/html") || "";
-    const text = e.clipboardData?.getData("text/plain") || "";
-
-    if (html) {
-      this.insertHtmlAtCursor(htmlEditor, html);
-      requestAnimationFrame(() => {
-        const current = htmlEditor.innerHTML;
-        const sanitized = this.sanitize(current);
-        if (sanitized !== current) htmlEditor.innerHTML = sanitized;
-        this.convertWebToIt();
-      });
-    } else if (text) {
-      this.insertHtmlAtCursor(
-        htmlEditor,
-        text
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/\n/g, "<br>"),
-      );
-      requestAnimationFrame(() => this.convertWebToIt());
+    switch (format) {
+      case "it":
+        this.downloadFile(source, "document.it", "text/plain");
+        break;
+      case "html":
+        if (this.currentDoc) {
+          const html = renderHTML(this.currentDoc);
+          const fullHtml = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>${this.getTitle()}</title>\n<style>\nbody { font-family: system-ui, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.6; }\ntable { border-collapse: collapse; width: 100%; }\nth, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\nth { background: #f5f5f5; }\nblockquote { border-left: 3px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: #555; }\n</style>\n</head>\n<body>\n${html}\n</body>\n</html>`;
+          this.downloadFile(fullHtml, "document.html", "text/html");
+        }
+        break;
+      case "md":
+        if (this.currentDoc) {
+          const md = convertToMarkdown(this.currentDoc);
+          this.downloadFile(md, "document.md", "text/markdown");
+        }
+        break;
+      case "pdf":
+        window.print();
+        break;
+      case "copy":
+        navigator.clipboard.writeText(source).then(() => {
+          const statusEl = document.getElementById("save-status")!;
+          statusEl.textContent = "Copied!";
+          setTimeout(() => {
+            statusEl.textContent = "";
+          }, 2000);
+        });
+        break;
     }
   }
 
-  /* ------------------------------------------------------------ *
-   *  Toolbar actions
-   * ------------------------------------------------------------ */
-
-  private clear(): void {
-    if (this.mode === "web-to-it") {
-      document.getElementById("html-editor")!.innerHTML = "";
-      (document.getElementById("md-input-area") as HTMLTextAreaElement).value =
-        "";
-      this.outputItEditor.setValue("");
-    } else {
-      this.inputItEditor.setValue("");
-      document.getElementById("html-output-content")!.innerHTML = "";
-      (document.getElementById("md-output-area") as HTMLTextAreaElement).value =
-        "";
+  private getTitle(): string {
+    if (this.currentDoc) {
+      const titleBlock = this.currentDoc.blocks.find((b) => b.type === "title");
+      if (titleBlock?.content) return titleBlock.content;
     }
-    this.updateStats("");
+    return "IntentText Document";
   }
 
-  private async copy(): Promise<void> {
-    let text = "";
-    if (this.mode === "web-to-it") {
-      text = this.outputItEditor.getValue();
-    } else if (
-      document.getElementById("pane-html-output")!.classList.contains("active")
-    ) {
-      text = document.getElementById("html-output-content")!.innerHTML;
-    } else {
-      text = (document.getElementById("md-output-area") as HTMLTextAreaElement)
-        .value;
-    }
-    if (!text) return;
-    await navigator.clipboard.writeText(text);
-    const btn = document.getElementById("copy-btn")!;
-    const orig = btn.textContent;
-    btn.textContent = "Copied!";
-    btn.classList.add("success");
-    setTimeout(() => {
-      btn.textContent = orig;
-      btn.classList.remove("success");
-    }, 1500);
-  }
-
-  private download(): void {
-    let content = "",
-      filename = "",
-      mimeType = "";
-
-    if (this.mode === "web-to-it") {
-      content = this.outputItEditor.getValue();
-      filename = "document.it";
-      mimeType = "text/plain";
-    } else if (
-      document.getElementById("pane-html-output")!.classList.contains("active")
-    ) {
-      content = document.getElementById("html-output-content")!.innerHTML;
-      filename = "document.html";
-      mimeType = "text/html";
-    } else {
-      content = (
-        document.getElementById("md-output-area") as HTMLTextAreaElement
-      ).value;
-      filename = "document.md";
-      mimeType = "text/markdown";
-    }
-    if (!content) return;
-
+  private downloadFile(
+    content: string,
+    filename: string,
+    mimeType: string,
+  ): void {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([content], { type: mimeType }));
+    a.href = url;
     a.download = filename;
     a.click();
-    URL.revokeObjectURL(a.href);
+    URL.revokeObjectURL(url);
   }
 
-  private loadExample(): void {
-    if (this.mode === "web-to-it") {
-      const mdBtn = document.querySelector<HTMLElement>(
-        '[data-tab="pane-md-input"]',
-      )!;
-      this.switchTab(mdBtn);
-      (document.getElementById("md-input-area") as HTMLTextAreaElement).value =
-        EXAMPLE_MD;
-      this.convertWebToIt();
+  // ── Import ────────────────────────────────────────────────
+  private handleImport(): void {
+    const textarea = document.getElementById(
+      "import-input",
+    ) as HTMLTextAreaElement;
+    const content = textarea.value.trim();
+    if (!content) return;
+
+    let itContent: string;
+    if (this.importMode === "html") {
+      itContent = convertHtmlToIntentText(content);
     } else {
-      this.inputItEditor.setValue(EXAMPLE_IT);
+      itContent = convertMarkdownToIntentText(content);
+    }
+
+    // Append or replace
+    const current = this.editor.getValue();
+    if (current.trim()) {
+      this.editor.setValue(current + "\n\n" + itContent);
+    } else {
+      this.editor.setValue(itContent);
+    }
+
+    textarea.value = "";
+    this.hideModal("import-modal");
+    this.editor.focus();
+  }
+
+  // ── Query panel ───────────────────────────────────────────
+  private toggleQuery(): void {
+    this.queryOpen = !this.queryOpen;
+    const panel = document.getElementById("query-panel")!;
+    panel.classList.toggle("hidden", !this.queryOpen);
+    const btn = document.getElementById("query-btn")!;
+    btn.style.background = this.queryOpen ? "rgba(255,255,255,0.2)" : "";
+  }
+
+  private runQuery(): void {
+    const source = this.editor.getValue();
+    if (!source.trim()) return;
+
+    const typeSelect = document.getElementById(
+      "query-type",
+    ) as HTMLSelectElement;
+    const textInput = document.getElementById("query-text") as HTMLInputElement;
+    const ownerInput = document.getElementById(
+      "query-owner",
+    ) as HTMLInputElement;
+    const resultsDiv = document.getElementById("query-results")!;
+
+    const typeFilter = typeSelect.value;
+    const textFilter = textInput.value.trim();
+    const ownerFilter = ownerInput.value.trim();
+
+    // Build query string
+    const parts: string[] = [];
+    if (typeFilter) parts.push(`type:${typeFilter}`);
+    if (textFilter) parts.push(`content:${textFilter}`);
+    if (ownerFilter) parts.push(`owner:${ownerFilter}`);
+
+    if (parts.length === 0) {
+      // Show all blocks
+      const doc = parseIntentText(source);
+      this.renderQueryResults(resultsDiv, doc.blocks, doc.blocks.length);
+      return;
+    }
+
+    const queryStr = parts.join(" ");
+    try {
+      const doc = parseIntentText(source);
+      const result = queryBlocks(doc, queryStr);
+      this.renderQueryResults(resultsDiv, result.blocks, result.total);
+    } catch {
+      resultsDiv.innerHTML = '<p class="query-empty">Invalid query.</p>';
     }
   }
 
-  /* ------------------------------------------------------------ *
-   *  Drag & drop
-   * ------------------------------------------------------------ */
+  private renderQueryResults(
+    container: HTMLElement,
+    blocks: IntentBlock[],
+    total: number,
+  ): void {
+    if (blocks.length === 0) {
+      container.innerHTML = '<p class="query-empty">No matching blocks.</p>';
+      return;
+    }
 
-  private setupDragDrop(): void {
-    const inputPanel = document.getElementById("input-panel")!;
-    let dragCounter = 0;
+    let html = `<div class="query-count">${blocks.length} of ${total} blocks</div>`;
+    for (const block of blocks) {
+      const props = block.properties ?? {};
+      const metaParts: string[] = [];
+      if (props.owner) metaParts.push(`owner: ${props.owner}`);
+      if (props.due) metaParts.push(`due: ${props.due}`);
+      if (props.priority) metaParts.push(`priority: ${props.priority}`);
 
-    inputPanel.addEventListener("dragenter", (e) => {
-      e.preventDefault();
-      dragCounter++;
-      inputPanel.classList.add("drag-over");
-    });
-
-    inputPanel.addEventListener("dragleave", () => {
-      dragCounter--;
-      if (dragCounter <= 0) {
-        dragCounter = 0;
-        inputPanel.classList.remove("drag-over");
-      }
-    });
-
-    inputPanel.addEventListener("dragover", (e) => {
-      e.preventDefault();
-    });
-
-    inputPanel.addEventListener("drop", async (e) => {
-      e.preventDefault();
-      dragCounter = 0;
-      inputPanel.classList.remove("drag-over");
-
-      const file = e.dataTransfer?.files[0];
-      if (!file) return;
-      const text = await file.text();
-
-      if (this.mode === "web-to-it") {
-        if (file.name.endsWith(".md") || file.name.endsWith(".markdown")) {
-          const mdBtn = document.querySelector<HTMLElement>(
-            '[data-tab="pane-md-input"]',
-          )!;
-          this.switchTab(mdBtn);
-          (
-            document.getElementById("md-input-area") as HTMLTextAreaElement
-          ).value = text;
-        } else {
-          const htmlBtn = document.querySelector<HTMLElement>(
-            '[data-tab="pane-html-input"]',
-          )!;
-          this.switchTab(htmlBtn);
-          document.getElementById("html-editor")!.innerText = text;
-        }
-        this.convertWebToIt();
-      } else {
-        this.inputItEditor.setValue(text);
-      }
-    });
+      html += `<div class="query-result-item">
+        <div class="result-type">${block.type}</div>
+        <div class="result-content">${this.escapeHtml(block.content ?? "")}</div>
+        ${metaParts.length ? `<div class="result-meta">${metaParts.join(" \u00B7 ")}</div>` : ""}
+      </div>`;
+    }
+    container.innerHTML = html;
   }
 
-  /* ------------------------------------------------------------ *
-   *  Utilities
-   * ------------------------------------------------------------ */
-
-  private sanitize(html: string): string {
+  private escapeHtml(text: string): string {
     const div = document.createElement("div");
-    div.innerHTML = html;
-    div
-      .querySelectorAll("script, style, meta, link, noscript")
-      .forEach((el) => el.remove());
-    div.querySelectorAll("*").forEach((el) => {
-      const keep = [
-        "href",
-        "src",
-        "alt",
-        "title",
-        "colspan",
-        "rowspan",
-        "type",
-        "checked",
-      ];
-      for (const attr of [...el.attributes]) {
-        if (!keep.includes(attr.name)) el.removeAttribute(attr.name);
-      }
-      const href = el.getAttribute("href");
-      if (href && /^(javascript|data):/i.test(href)) el.removeAttribute("href");
-    });
+    div.textContent = text;
     return div.innerHTML;
   }
 
-  private insertHtmlAtCursor(container: HTMLElement, html: string): void {
-    container.focus();
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      container.insertAdjacentHTML("beforeend", html);
-      return;
-    }
-    const range = selection.getRangeAt(0);
-    if (!container.contains(range.commonAncestorContainer)) {
-      container.insertAdjacentHTML("beforeend", html);
-      return;
-    }
-    range.deleteContents();
-    const fragment = range.createContextualFragment(html);
-    const lastNode = fragment.lastChild;
-    range.insertNode(fragment);
-    if (lastNode) {
-      const nextRange = document.createRange();
-      nextRange.setStartAfter(lastNode);
-      nextRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(nextRange);
-    }
+  // ── Modal helpers ─────────────────────────────────────────
+  private showModal(id: string): void {
+    document.getElementById(id)!.classList.remove("hidden");
   }
 
-  private debounce(fn: () => void, delay: number): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(fn, delay);
+  private hideModal(id: string): void {
+    document.getElementById(id)!.classList.add("hidden");
+  }
+
+  // ── Resize handle ─────────────────────────────────────────
+  private setupResizeHandle(): void {
+    const handle = document.getElementById("resize-handle")!;
+    const editorPanel = document.getElementById("editor-panel")!;
+    const previewPanel = document.getElementById("preview-panel")!;
+    const workspace = document.querySelector(".workspace") as HTMLElement;
+    let dragging = false;
+
+    handle.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      dragging = true;
+      handle.classList.add("dragging");
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!dragging) return;
+      const rect = workspace.getBoundingClientRect();
+      const offset = e.clientX - rect.left;
+      const total = rect.width;
+      const pct = Math.max(20, Math.min(80, (offset / total) * 100));
+      editorPanel.style.flex = "none";
+      editorPanel.style.width = `${pct}%`;
+      previewPanel.style.flex = "none";
+      previewPanel.style.width = `${100 - pct}%`;
+      this.editor.layout();
+    });
+
+    document.addEventListener("mouseup", () => {
+      if (dragging) {
+        dragging = false;
+        handle.classList.remove("dragging");
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    });
   }
 }
