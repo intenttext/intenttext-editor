@@ -165,7 +165,7 @@ step: Schedule publishing | id: step-publish | tool: cms.schedule
 retry: Publish to all channels | max: 2 | delay: 3000
 
 section: Tracking
-status: Campaign live | phase: monitoring | level: info
+emit: Campaign live | phase: monitoring | level: info
 loop: Track daily metrics | over: campaignDays | do: step-metrics
 step: Pull analytics | id: step-metrics | tool: analytics.pull
 
@@ -190,7 +190,7 @@ section: Agenda
 
 section: Discussion
 ask: Should we delay the launch for more testing?
-quote: The test suite is solid — 220 tests all passing. Let's ship it. | by: Ahmed
+quote: The test suite is solid — 255 tests all passing. Let's ship it. | by: Ahmed
 
 info: Team agreed to proceed with launch on Wednesday.
 warning: Need to coordinate with marketing on the announcement.
@@ -257,14 +257,16 @@ summary: Full API reference. See GitHub for SDK examples.`,
     icon: "📋",
     category: "docs",
     description: "Goals, milestones, and team tasks",
-    content: `title: *IntentText* v2.1 Release Plan
-summary: Ship the inter-agent communication update.
+    content: `title: *IntentText* v2.3 Release Plan
+summary: Ship gate, call, emit — agentic workflow v2.3 update.
 
 section: Goals
-- Complete parser support for 6 new keywords
-- Add HTML rendering for all new blocks
-- Pass 220+ tests with full backward compatibility
-- Publish to npm as @intenttext/core v2.1.0
+- Add gate, call, emit keywords
+- Add {{variable}} interpolation support
+- Add join: on parallel, on: on wait
+- Remove schema: standalone block, alias status: → emit:
+- Pass 255+ tests with full backward compatibility
+- Publish to npm as @intenttext/core v2.3.0
 
 section: Team
 | Role | Name | Focus |
@@ -274,26 +276,26 @@ section: Team
 
 section: Milestones
 
-sub: Phase 1 — Core Keywords
-done: Add status, result, handoff blocks | owner: Ahmed
-done: Add wait, parallel, retry blocks | owner: Ahmed
-done: Numeric property coercion | owner: Ahmed
+sub: Phase 1 — New Keywords
+done: Add gate, call, emit blocks | owner: Ahmed
+done: {{variable}} interpolation | owner: Ahmed
+done: join: on parallel, on: on wait | owner: Ahmed
 
 sub: Phase 2 — Rendering
-done: HTML renderers for all 6 blocks | owner: Sarah
+done: HTML renderers for gate, call, emit | owner: Sarah
 done: CSS styling with icons and badges | owner: Sarah
 
 sub: Phase 3 — Testing & Docs
-done: 33 new tests (220 total passing) | owner: Mike
-done: Update SPEC.md with v2.1 blocks | owner: Ahmed
-task: Update demo app with v2.1 templates | owner: Sarah | due: Wednesday
+done: 35 new tests (255 total passing) | owner: Mike
+done: Update SPEC.md with v2.3 blocks | owner: Ahmed
+done: Update demo app with v2.3 templates | owner: Sarah
 
 section: Risks
 warning: Browser bundle size may increase — monitor.
 tip: Keep new blocks consistent with v2.0 design patterns.
 
-progress: 9/10 milestones complete
-summary: On track for Wednesday release.`,
+progress: 10/10 milestones complete
+summary: v2.3 shipped and published to npm.`,
   },
   {
     id: "blank",

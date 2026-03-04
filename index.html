@@ -90,21 +90,27 @@
         <button class="kw-btn agentic" data-kw="handoff:  | from:  | to: ">
           handoff
         </button>
-        <button class="kw-btn agentic" data-kw="wait:  | timeout: ">
+        <button class="kw-btn agentic" data-kw="wait:  | on:  | timeout: ">
           wait
         </button>
-        <button class="kw-btn agentic" data-kw="parallel:  | steps: ">
+        <button class="kw-btn agentic" data-kw="parallel:  | steps:  | join: all">
           parallel
         </button>
         <button class="kw-btn agentic" data-kw="retry:  | max:  | delay: ">
           retry
         </button>
         <span class="toolbar-sep"></span>
+        <button class="kw-btn agentic" data-kw="gate:  | approver:  | timeout: ">
+          gate
+        </button>
+        <button class="kw-btn agentic" data-kw="call:  | input:  | output: ">
+          call
+        </button>
+        <button class="kw-btn agentic" data-kw="emit:  | phase:  | level: info">
+          emit
+        </button>
         <button class="kw-btn agentic" data-kw="result:  | code: ">
           result
-        </button>
-        <button class="kw-btn agentic" data-kw="status:  | phase: ">
-          status
         </button>
         <button class="kw-btn" data-kw="| Col 1 | Col 2 | Col 3 |">
           table
@@ -195,8 +201,10 @@
                 <option value="wait">Waits</option>
                 <option value="parallel">Parallel</option>
                 <option value="retry">Retries</option>
+                <option value="gate">Gates</option>
+                <option value="call">Calls</option>
+                <option value="emit">Emit</option>
                 <option value="result">Results</option>
-                <option value="status">Status</option>
                 <option value="audit">Audits</option>
               </optgroup>
             </select>
@@ -359,17 +367,17 @@
               </div>
             </div>
             <div class="help-section help-agentic">
-              <h4>Inter-Agent (v2.1)</h4>
+              <h4>Inter-Agent (v2.3)</h4>
               <div class="help-row">
                 <code>handoff: X | from: A | to: B</code>
                 <span>Agent transfer</span>
               </div>
               <div class="help-row">
-                <code>wait: X | timeout: 30s</code>
+                <code>wait: X | on: Y | timeout: 30s</code>
                 <span>Async pause</span>
               </div>
               <div class="help-row">
-                <code>parallel: X | steps: a,b,c</code>
+                <code>parallel: X | steps: a,b,c | join: all</code>
                 <span>Concurrent steps</span>
               </div>
               <div class="help-row">
@@ -377,12 +385,20 @@
                 <span>Retry policy</span>
               </div>
               <div class="help-row">
-                <code>result: X | code: 200</code>
-                <span>Execution output</span>
+                <code>gate: X | approver: Y | timeout: 24h</code>
+                <span>Human approval</span>
               </div>
               <div class="help-row">
-                <code>status: X | phase: Y | level: Z</code>
-                <span>Workflow status</span>
+                <code>call: ./file.it | input: {{var}}</code>
+                <span>Sub-workflow</span>
+              </div>
+              <div class="help-row">
+                <code>emit: X | phase: Y | level: info</code>
+                <span>Signal / status</span>
+              </div>
+              <div class="help-row">
+                <code>result: X | code: 200</code>
+                <span>Execution output</span>
               </div>
             </div>
             <div class="help-section">
