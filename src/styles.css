@@ -41,6 +41,9 @@
   --header-h: 48px;
   --toolbar-h: 40px;
   --status-h: 28px;
+  --preview-font:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
 }
 
 html,
@@ -277,6 +280,34 @@ header h1 span {
   transition: all var(--transition);
   white-space: nowrap;
 }
+.fmt-btn,
+.align-btn {
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.fmt-btn:hover,
+.align-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+.toolbar-select {
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 0 8px;
+}
 .kw-btn:hover {
   border-color: var(--primary);
   color: var(--primary);
@@ -325,6 +356,31 @@ header h1 span {
   min-width: 280px;
   background: var(--surface);
   border-right: 1px solid var(--border);
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
+  overflow-x: auto;
+}
+
+.editor-toolbar .fmt-btn,
+.editor-toolbar .align-btn,
+.editor-toolbar .toolbar-select {
+  flex-shrink: 0;
+}
+
+.editor-toolbar .align-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
 }
 
 .monaco-container {
@@ -404,6 +460,42 @@ header h1 span {
 .preview-content.active {
   display: block;
 }
+.preview-content.active .intent-document {
+  font-family: var(--preview-font) !important;
+}
+.preview-content.a4-mode.active {
+  background: #eef2f7;
+  padding: 20px;
+}
+
+.preview-content.a4-mode.active .intent-document {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.preview-content.a4-mode.active .a4-page {
+  width: 794px;
+  max-width: 100%;
+  min-height: 1123px;
+  background: #fff;
+  margin: 0 auto 16px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  padding: 40px 42px;
+  overflow: hidden;
+}
+
+.preview-content.a4-mode.active .a4-page-break-before {
+  break-before: page;
+}
+
+.preview-content.a4-mode.active .a4-page-keep {
+  break-inside: avoid;
+}
 .preview-content pre {
   white-space: pre-wrap;
   word-break: break-word;
@@ -463,6 +555,16 @@ header h1 span {
   border: 1px solid var(--border);
   border-radius: 16px;
   color: var(--text-muted);
+}
+
+.app.focus-mode .preview-panel,
+.app.focus-mode .resize-handle,
+.app.focus-mode .query-panel {
+  display: none;
+}
+.app.focus-mode .editor-panel {
+  width: 100%;
+  border-right: none;
 }
 
 /* ── Query panel ─────────────────────────────────────────── */

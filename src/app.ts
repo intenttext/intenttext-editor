@@ -103,9 +103,159 @@ function registerIntentTextLanguage(): void {
   });
 }
 
+function registerIntentTextCompletions(): void {
+  const keywords = [
+    "title",
+    "summary",
+    "section",
+    "sub",
+    "note",
+    "task",
+    "done",
+    "ask",
+    "quote",
+    "info",
+    "warning",
+    "tip",
+    "success",
+    "link",
+    "image",
+    "headers",
+    "row",
+    "code",
+    "step",
+    "decision",
+    "trigger",
+    "loop",
+    "checkpoint",
+    "audit",
+    "error",
+    "context",
+    "handoff",
+    "wait",
+    "parallel",
+    "retry",
+    "result",
+    "gate",
+    "call",
+    "emit",
+  ];
+
+  const props = [
+    "owner",
+    "due",
+    "priority",
+    "time",
+    "status",
+    "align",
+    "at",
+    "to",
+    "caption",
+    "title",
+    "tool",
+    "input",
+    "output",
+    "depends",
+    "id",
+    "event",
+    "if",
+    "then",
+    "else",
+    "over",
+    "do",
+    "fallback",
+    "notify",
+    "from",
+    "timeout",
+    "max",
+    "delay",
+    "backoff",
+    "steps",
+    "code",
+    "data",
+    "phase",
+    "level",
+    "model",
+    "agent",
+    "retries",
+    "join",
+    "on",
+    "approver",
+  ];
+
+  monaco.languages.registerCompletionItemProvider("intenttext", {
+    triggerCharacters: [":", "|", "[", "@", "#", " "],
+    provideCompletionItems(model, position) {
+      const word = model.getWordUntilPosition(position);
+      const range = new monaco.Range(
+        position.lineNumber,
+        word.startColumn,
+        position.lineNumber,
+        word.endColumn,
+      );
+      const linePrefix = model
+        .getLineContent(position.lineNumber)
+        .slice(0, position.column - 1);
+
+      const suggestions: monaco.languages.CompletionItem[] = [];
+
+      if (/^\s*[a-z-]*$/i.test(linePrefix)) {
+        suggestions.push(
+          ...keywords.map((k) => ({
+            label: `${k}:`,
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: `${k}: `,
+            detail: "IntentText keyword",
+            range,
+          })),
+        );
+      }
+
+      if (linePrefix.includes("|")) {
+        suggestions.push(
+          ...props.map((p) => ({
+            label: `${p}:`,
+            kind: monaco.languages.CompletionItemKind.Property,
+            insertText: `${p}: `,
+            detail: "IntentText property",
+            range,
+          })),
+        );
+      }
+
+      return { suggestions };
+    },
+  });
+}
+
 // ── Helper: IntentText to Markdown ─────────────────────────
 function convertToMarkdown(doc: IntentDocument): string {
   const lines: string[] = [];
+
+  const inlineToMarkdown = (block: IntentBlock): string => {
+    if (!block.inline || block.inline.length === 0) return block.content ?? "";
+
+    return block.inline
+      .map((node) => {
+        switch (node.type) {
+          case "text":
+            return node.value;
+          case "bold":
+            return `*${node.value}*`;
+          case "italic":
+            return `_${node.value}_`;
+          case "strike":
+            return `~${node.value}~`;
+          case "code":
+            return `\`${node.value}\``;
+          case "link":
+            return `[${node.value}](${node.href})`;
+          default:
+            return (node as { value: string }).value;
+        }
+      })
+      .join("");
+  };
 
   // Collect metadata header if present
   const metaProps: string[] = [];
@@ -128,7 +278,7 @@ function convertToMarkdown(doc: IntentDocument): string {
   }
 
   for (const block of doc.blocks) {
-    const content = block.content ?? "";
+    const content = inlineToMarkdown(block);
     const props = block.properties ?? {};
 
     switch (block.type) {
@@ -224,6 +374,47 @@ function convertToMarkdown(doc: IntentDocument): string {
             lines.push(`| ${row.join(" | ")} |`);
           }
         }
+        break;
+      case "headers": {
+        const cells = content
+          .split("|")
+          .map((c) => c.trim())
+          .filter(Boolean);
+        if (cells.length) {
+          lines.push(`\n| ${cells.join(" | ")} |`);
+          lines.push(`| ${cells.map(() => "---").join(" | ")} |`);
+        }
+        break;
+      }
+      case "row": {
+        const cells = content
+          .split("|")
+          .map((c) => c.trim())
+          .filter(Boolean);
+        if (cells.length) lines.push(`| ${cells.join(" | ")} |`);
+        break;
+      }
+      case "ref":
+        lines.push(`> **Ref:** ${content}`);
+        break;
+      case "embed":
+        lines.push(`> **Embed:** ${content}`);
+        break;
+      case "import":
+        lines.push(`- **Import:** ${content}`);
+        break;
+      case "export":
+        lines.push(`- **Export:** ${content}`);
+        break;
+      case "list-item":
+      case "step-item":
+        lines.push(`- ${content}`);
+        break;
+      case "end":
+        lines.push("\n```\n```");
+        break;
+      case "extension":
+        lines.push(`> **Extension:** ${content}`);
         break;
 
       // ── Agentic v2 ──
@@ -331,7 +522,17 @@ function convertToMarkdown(doc: IntentDocument): string {
       }
 
       default:
-        if (content) lines.push(content);
+        if (content) {
+          const extras = Object.entries(props)
+            .filter(([, v]) => v != null && String(v).trim())
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(" | ");
+          lines.push(
+            extras
+              ? `> **${block.type}:** ${content}  \`${extras}\``
+              : `> **${block.type}:** ${content}`,
+          );
+        }
     }
   }
   return lines.join("\n").trim();
@@ -344,11 +545,14 @@ export class IntentTextApp {
   private autosaveTimer: number | null = null;
   private queryOpen = false;
   private importMode: "markdown" | "html" = "markdown";
+  private previewLayout: "fluid" | "a4" = "fluid";
 
   constructor() {
     registerIntentTextLanguage();
+    registerIntentTextCompletions();
     this.createEditor();
     this.bindEvents();
+    this.applyToolbarHints();
     this.buildTemplateMenu();
     this.loadAutosave();
     this.updatePreview();
@@ -373,8 +577,8 @@ export class IntentTextApp {
       scrollBeyondLastLine: false,
       automaticLayout: true,
       renderLineHighlight: "line",
-      suggestOnTriggerCharacters: false,
-      quickSuggestions: false,
+      suggestOnTriggerCharacters: true,
+      quickSuggestions: true,
       tabSize: 2,
       lineNumbers: "off",
       glyphMargin: false,
@@ -387,6 +591,8 @@ export class IntentTextApp {
         verticalScrollbarSize: 8,
         horizontalScrollbarSize: 8,
       },
+      cursorSurroundingLines: 8,
+      cursorSurroundingLinesStyle: "all",
     });
 
     // Live preview on change
@@ -409,6 +615,46 @@ export class IntentTextApp {
           const kw = btn.dataset.kw ?? "";
           this.insertAtCursor(kw);
         }
+      });
+
+    document.getElementById("editor-toolbar")?.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      const formatBtn = target.closest(".fmt-btn") as HTMLElement | null;
+      const alignBtn = target.closest(".align-btn") as HTMLElement | null;
+
+      if (formatBtn?.dataset.format) {
+        this.applyInlineFormat(formatBtn.dataset.format);
+        return;
+      }
+
+      if (formatBtn?.dataset.page) {
+        this.applyPageRule(formatBtn.dataset.page as "break" | "keep" | "clear");
+        return;
+      }
+
+      if (formatBtn?.id === "focus-mode-btn") {
+        this.toggleFocusMode();
+        return;
+      }
+
+      if (alignBtn?.dataset.align) {
+        this.applyLineAlignment(alignBtn.dataset.align);
+      }
+    });
+
+    document.getElementById("font-select")?.addEventListener("change", (e) => {
+      const val = (e.target as HTMLSelectElement).value;
+      this.editor.updateOptions({ fontFamily: val });
+      document.documentElement.style.setProperty("--preview-font", val);
+    });
+
+    document
+      .getElementById("page-layout-select")
+      ?.addEventListener("change", (e) => {
+        const val = (e.target as HTMLSelectElement).value;
+        this.previewLayout = val === "a4" ? "a4" : "fluid";
+        document.getElementById("preview-rendered")?.classList.toggle("a4-mode", this.previewLayout === "a4");
+        this.updatePreview();
       });
 
     // New / template dropdown
@@ -634,6 +880,132 @@ export class IntentTextApp {
     this.editor.focus();
   }
 
+  private applyInlineFormat(kind: string): void {
+    const selection = this.editor.getSelection();
+    if (!selection) return;
+    const model = this.editor.getModel();
+    if (!model) return;
+
+    const selected = model.getValueInRange(selection);
+    const wraps: Record<
+      string,
+      { open: string; close: string; fallback: string }
+    > = {
+      bold: { open: "*", close: "*", fallback: "bold" },
+      italic: { open: "_", close: "_", fallback: "italic" },
+      strike: { open: "~", close: "~", fallback: "strike" },
+      highlight: { open: "^", close: "^", fallback: "highlight" },
+      code: { open: "`", close: "`", fallback: "label" },
+      quote: { open: "==", close: "==", fallback: "quote" },
+      note: { open: "[[", close: "]]", fallback: "note" },
+      link: { open: "[[", close: "|https://example.com]]", fallback: "label" },
+      date: { open: "", close: "", fallback: "@today" },
+    };
+
+    const conf = wraps[kind];
+    if (!conf) return;
+    let payload = selected || conf.fallback;
+    if (selected) {
+      if (kind === "date") {
+        payload = selected.startsWith("@") ? selected.slice(1) : `@${selected}`;
+      } else if (
+        selected.startsWith(conf.open) &&
+        selected.endsWith(conf.close) &&
+        selected.length >= conf.open.length + conf.close.length
+      ) {
+        payload = selected.slice(conf.open.length, selected.length - conf.close.length);
+        conf.open = "";
+        conf.close = "";
+      }
+    }
+    this.editor.executeEdits("writer-format", [
+      {
+        range: selection,
+        text: `${conf.open}${payload}${conf.close}`,
+        forceMoveMarkers: true,
+      },
+    ]);
+    this.editor.focus();
+  }
+
+  private applyLineAlignment(align: string): void {
+    const selection = this.editor.getSelection();
+    const model = this.editor.getModel();
+    if (!selection || !model) return;
+
+    const edits: monaco.editor.IIdentifiedSingleEditOperation[] = [];
+    for (let lineNumber = selection.startLineNumber; lineNumber <= selection.endLineNumber; lineNumber++) {
+      const line = model.getLineContent(lineNumber);
+      if (!line.trim()) continue;
+
+      let next = line;
+      if (align === "left") {
+        next = line.replace(/\s*\|\s*align:\s*[^|]+/i, "").trimEnd();
+      } else if (/\|\s*align:\s*[^|]+/i.test(line)) {
+        next = line.replace(/\|\s*align:\s*[^|]+/i, `| align: ${align}`);
+      } else {
+        next = `${line.trimEnd()} | align: ${align}`;
+      }
+
+      edits.push({
+        range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
+        text: next,
+        forceMoveMarkers: true,
+      });
+    }
+
+    if (edits.length) {
+      this.editor.executeEdits("writer-align", edits);
+    }
+    this.editor.focus();
+  }
+
+  private applyPageRule(mode: "break" | "keep" | "clear"): void {
+    const selection = this.editor.getSelection();
+    const model = this.editor.getModel();
+    if (!selection || !model) return;
+
+    const edits: monaco.editor.IIdentifiedSingleEditOperation[] = [];
+    for (let lineNumber = selection.startLineNumber; lineNumber <= selection.endLineNumber; lineNumber++) {
+      const line = model.getLineContent(lineNumber);
+      if (!line.trim()) continue;
+      const stripped = line.replace(/\s*\|\s*page:\s*(break|keep)\b/gi, "").trimEnd();
+      const text =
+        mode === "clear" ? stripped : `${stripped}${stripped ? " " : ""}| page: ${mode}`;
+
+      edits.push({
+        range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
+        text,
+        forceMoveMarkers: true,
+      });
+    }
+
+    if (edits.length) {
+      this.editor.executeEdits("writer-page", edits);
+      this.updatePreview();
+    }
+  }
+
+  private applyToolbarHints(): void {
+    document.querySelectorAll<HTMLElement>("#keyword-toolbar .kw-btn").forEach((el) => {
+      const snippet = el.dataset.kw?.replace(/\n/g, " ").trim();
+      if (snippet) {
+        el.title = `Insert: ${snippet}`;
+      }
+    });
+
+    document.querySelectorAll<HTMLElement>("button, select").forEach((el) => {
+      if (el.title?.trim()) return;
+      const text = el.textContent?.trim();
+      if (text) el.title = text;
+    });
+  }
+
+  private toggleFocusMode(): void {
+    document.querySelector(".app")?.classList.toggle("focus-mode");
+    this.editor.layout();
+  }
+
   // ── Live preview ──────────────────────────────────────────
   private updatePreview(): void {
     const source = this.editor.getValue();
@@ -658,6 +1030,9 @@ export class IntentTextApp {
       }
     } else {
       rendered.innerHTML = renderHTML(doc);
+      if (this.previewLayout === "a4") {
+        this.applyA4Pagination(doc);
+      }
     }
 
     // JSON code view
@@ -677,6 +1052,66 @@ export class IntentTextApp {
     const lineCount = source.split("\n").length;
     const blockCount = doc.blocks.length;
     stats.textContent = `${blockCount} block${blockCount !== 1 ? "s" : ""} \u00B7 ${lineCount} line${lineCount !== 1 ? "s" : ""}`;
+  }
+
+  private flattenBlocks(blocks: IntentBlock[]): IntentBlock[] {
+    const list: IntentBlock[] = [];
+    for (const block of blocks) {
+      list.push(block);
+      if (block.children?.length) {
+        list.push(...this.flattenBlocks(block.children));
+      }
+    }
+    return list;
+  }
+
+  private applyA4Pagination(doc: IntentDocument): void {
+    const rendered = document.getElementById("preview-rendered");
+    const root = rendered?.querySelector(".intent-document") as HTMLElement | null;
+    if (!root) return;
+
+    const elements = Array.from(root.children) as HTMLElement[];
+    const blocks = this.flattenBlocks(doc.blocks);
+    if (!elements.length || !blocks.length) return;
+
+    const maxPageHeight = 1040;
+    root.innerHTML = "";
+
+    let page = document.createElement("section");
+    page.className = "a4-page";
+    root.appendChild(page);
+
+    let used = 0;
+    for (let i = 0; i < elements.length; i++) {
+      const element = elements[i];
+      const block = blocks[i];
+      const pageRule = String(block?.properties?.page || "").toLowerCase();
+
+      if (pageRule === "break" && page.childElementCount > 0) {
+        page = document.createElement("section");
+        page.className = "a4-page";
+        root.appendChild(page);
+        used = 0;
+      }
+
+      if (pageRule === "keep") {
+        element.classList.add("a4-page-keep");
+      }
+
+      page.appendChild(element);
+      const height = element.getBoundingClientRect().height;
+
+      if (used + height > maxPageHeight && page.childElementCount > 1 && pageRule !== "keep") {
+        page.removeChild(element);
+        page = document.createElement("section");
+        page.className = "a4-page";
+        root.appendChild(page);
+        page.appendChild(element);
+        used = element.getBoundingClientRect().height;
+      } else {
+        used += height;
+      }
+    }
   }
 
   // ── Autosave ──────────────────────────────────────────────
