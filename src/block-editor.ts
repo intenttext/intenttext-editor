@@ -13,6 +13,7 @@ import { PropertyPanel } from "./property-panel";
 import { REQUIRES_PROPERTIES } from "./block-schemas";
 import { SlashMenu } from "./slash-menu";
 import { UndoStack } from "./undo-stack";
+import type { PageView } from "./page-view";
 
 /** Placeholder text by block type */
 const PLACEHOLDERS: Record<string, string> = {
@@ -40,6 +41,7 @@ export class BlockEditor {
   private undoStack: UndoStack;
   private typingSnapshotTimer: ReturnType<typeof setTimeout> | null = null;
   private hasUnsavedChanges = false;
+  private pageView: PageView | null = null;
 
   constructor(container: HTMLElement, sync: SyncEngine) {
     this.container = container;
@@ -70,6 +72,24 @@ export class BlockEditor {
     const panel = settingsBar.querySelector(".it-doc-settings__panel");
     if (toggle && panel) {
       toggle.addEventListener("click", () => panel.classList.toggle("hidden"));
+      // Wire settings input changes
+      panel.addEventListener("change", (e) => {
+        const input = e.target as HTMLInputElement;
+        if (!input.dataset.blockId || !input.dataset.prop) return;
+        const block = this.sync
+          .getDocument()
+          .blocks.flatMap((b) => [b, ...(b.children ?? [])])
+          .find((b) => b.id === input.dataset.blockId);
+        const merged = {
+          ...block?.properties,
+          [input.dataset.prop]: input.value,
+        };
+        this.sync.updateBlockProperties(
+          input.dataset.blockId,
+          merged as Record<string, string>,
+        );
+        this.markUnsaved();
+      });
     }
 
     // Content canvas
@@ -103,10 +123,30 @@ export class BlockEditor {
       canvas.appendChild(placeholder);
     }
 
+    // Page view: paginate if enabled
+    if (this.pageView?.isEnabled()) {
+      // Extract doc settings for page headers/footers
+      const docProps: Record<string, string> = {};
+      for (const b of blocks) {
+        if (b.type === "page" && b.properties) {
+          for (const [k, v] of Object.entries(b.properties)) {
+            docProps[k] = String(v);
+          }
+        }
+      }
+      this.pageView.updateFromDocSettings(docProps);
+      this.pageView.paginate(canvas);
+    }
+
     // Restore focus
     if (this.focusedBlockId) {
       this.focusBlockEnd(this.focusedBlockId);
     }
+  }
+
+  /** Set a reference to the PageView engine */
+  setPageView(pv: PageView): void {
+    this.pageView = pv;
   }
 
   /** Get the undo stack (for external use by TabManager etc.) */
@@ -123,12 +163,14 @@ export class BlockEditor {
   markSaved(): void {
     this.hasUnsavedChanges = false;
     document.title = "IntentText Editor";
+    document.getElementById("unsaved-dot")?.classList.add("hidden");
   }
 
   /** Mark as unsaved */
   private markUnsaved(): void {
     this.hasUnsavedChanges = true;
     document.title = "● IntentText Editor";
+    document.getElementById("unsaved-dot")?.classList.remove("hidden");
   }
 
   destroy(): void {
@@ -227,7 +269,7 @@ export class BlockEditor {
   }
 
   /** Focus the first content block */
-  private focusFirstBlock(): void {
+  focusFirstBlock(): void {
     const firstBlock = this.container.querySelector(".it-block") as HTMLElement;
     if (firstBlock) {
       const blockId = firstBlock.dataset.blockId;

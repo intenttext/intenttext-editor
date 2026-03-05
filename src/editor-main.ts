@@ -5,6 +5,8 @@ import { SyncEngine } from "./sync-engine";
 import { TabManager } from "./tab-manager";
 import { FileOps } from "./file-ops";
 import { Toolbar } from "./toolbar";
+import { PageView } from "./page-view";
+import { TemplateManager } from "./template-manager";
 
 // ── Monaco language registration ────────────────────────────
 function registerIntentTextLanguage(): void {
@@ -197,6 +199,9 @@ const sync = new SyncEngine();
 const tabManager = new TabManager(sync);
 const fileOps = new FileOps(sync, tabManager);
 const toolbar = new Toolbar(sync);
+const pageView = new PageView(document.getElementById("tab-edit")!);
+pageView.applyCSSVars();
+const templateManager = new TemplateManager(sync);
 
 // Export dropdown toggle
 const exportBtn = document.getElementById("btn-export");
@@ -205,11 +210,66 @@ exportBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
   exportMenu?.classList.toggle("open");
 });
-document.addEventListener("click", () => exportMenu?.classList.remove("open"));
+document.addEventListener("click", () => {
+  exportMenu?.classList.remove("open");
+});
 
-// Wire up the block editor to toolbar and file-ops
+// Page size selector — applies to both editor and print
+const pageSizeSelect = document.getElementById(
+  "page-size-select",
+) as HTMLSelectElement;
+pageSizeSelect?.addEventListener("change", () => {
+  const size = pageSizeSelect.value;
+  pageView.setPageSize(size);
+  tabManager.setPageSize(size);
+  const be = tabManager.getBlockEditor();
+  be?.render();
+});
+
+// Wire up the block editor to toolbar, file-ops, template manager, and page view
 const blockEditor = tabManager.getBlockEditor();
 if (blockEditor) {
   toolbar.setBlockEditor(blockEditor);
   fileOps.setBlockEditor(blockEditor);
+  templateManager.setBlockEditor(blockEditor);
+  blockEditor.setPageView(pageView);
+  // Re-render so the first load gets paginated (pageView was null during initial render)
+  blockEditor.render();
 }
+
+// Zoom controls
+document
+  .getElementById("zoom-in")
+  ?.addEventListener("click", () => pageView.zoomIn());
+document
+  .getElementById("zoom-out")
+  ?.addEventListener("click", () => pageView.zoomOut());
+document
+  .getElementById("zoom-level")
+  ?.addEventListener("click", () => pageView.resetZoom());
+
+// Ctrl+Plus / Ctrl+Minus — zoom page instead of browser
+document.addEventListener("keydown", (e) => {
+  if (!(e.metaKey || e.ctrlKey)) return;
+  if (e.key === "=" || e.key === "+") {
+    e.preventDefault();
+    pageView.zoomIn();
+  } else if (e.key === "-") {
+    e.preventDefault();
+    pageView.zoomOut();
+  } else if (e.key === "0") {
+    e.preventDefault();
+    pageView.resetZoom();
+  }
+});
+
+// Tab switching — show/hide format toolbar for Edit tab only
+tabManager.onTabChange((tabId: string) => {
+  toolbar.setEditMode(tabId === "edit");
+});
+
+// Reveal app once CSS and JS are ready — prevents FOUC
+requestAnimationFrame(() => {
+  document.getElementById("it-app")?.classList.add("ready");
+  document.getElementById("app-loading")?.classList.add("hidden");
+});

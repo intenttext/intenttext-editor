@@ -2,9 +2,10 @@
 // Manages the 4 view tabs: Edit, Source, JSON, Print
 
 import * as monaco from "monaco-editor";
-import { renderPrint } from "@intenttext/core";
+import { renderHTML } from "@intenttext/core";
 import { SyncEngine } from "./sync-engine";
 import { BlockEditor } from "./block-editor";
+import { PAGE_SIZES } from "./page-view";
 
 export type TabId = "edit" | "source" | "json" | "print";
 
@@ -14,6 +15,8 @@ export class TabManager {
   private sourceEditor: monaco.editor.IStandaloneCodeEditor | null = null;
   private jsonEditor: monaco.editor.IStandaloneCodeEditor | null = null;
   private activeTab: TabId = "edit";
+  private tabChangeListeners: Array<(tabId: string) => void> = [];
+  private pageSize = "a4";
 
   private editContainer: HTMLElement;
   private sourceContainer: HTMLElement;
@@ -152,11 +155,19 @@ export class TabManager {
     } else if (tabId === "print") {
       this.updatePrintView();
     }
+
+    // Notify listeners
+    for (const fn of this.tabChangeListeners) fn(tabId);
   }
 
   /** Get the underlying block editor */
   getBlockEditor(): BlockEditor | null {
     return this.blockEditor;
+  }
+
+  /** Register a callback for tab changes */
+  onTabChange(listener: (tabId: string) => void): void {
+    this.tabChangeListeners.push(listener);
   }
 
   /** Get the underlying source editor (for file-ops and other integrations) */
@@ -179,6 +190,11 @@ export class TabManager {
     this.jsonEditor?.setValue(json);
   }
 
+  setPageSize(size: string): void {
+    this.pageSize = size;
+    if (this.activeTab === "print") this.updatePrintView();
+  }
+
   private updatePrintView(): void {
     const doc = this.sync.getDocument();
     const source = this.sync.getSource();
@@ -189,9 +205,59 @@ export class TabManager {
     }
 
     try {
-      const html = renderPrint(doc);
-      // Render in an iframe-like container
-      this.printContainer.innerHTML = `<div class="it-print-frame">${html}</div>`;
+      const html = renderHTML(doc);
+      const size = PAGE_SIZES[this.pageSize] || PAGE_SIZES.a4;
+      const isContinuous = size.height === 0;
+
+      if (isContinuous) {
+        // POS / continuous: single scroll
+        this.printContainer.innerHTML = `<div class="it-print-page" style="width:${size.width}px;min-height:auto">${html}</div>`;
+        return;
+      }
+
+      // Render into a hidden measurer to split into pages
+      const measurer = document.createElement("div");
+      measurer.style.position = "absolute";
+      measurer.style.visibility = "hidden";
+      measurer.style.width = `${size.width - 144}px`; // subtract L+R margins
+      measurer.style.fontSize = "14px";
+      measurer.style.lineHeight = "1.7";
+      measurer.innerHTML = html;
+      document.body.appendChild(measurer);
+
+      const contentHeight = size.height - 144; // top + bottom margins
+      const children = Array.from(measurer.children) as HTMLElement[];
+      const pages: string[] = [];
+      let currentPageHTML = "";
+      let usedHeight = 0;
+
+      for (const child of children) {
+        const h = child.offsetHeight + 8; // margin
+        if (usedHeight + h > contentHeight && currentPageHTML) {
+          pages.push(currentPageHTML);
+          currentPageHTML = "";
+          usedHeight = 0;
+        }
+        currentPageHTML += child.outerHTML;
+        usedHeight += h;
+      }
+      if (currentPageHTML) pages.push(currentPageHTML);
+      if (pages.length === 0) pages.push("");
+
+      document.body.removeChild(measurer);
+
+      const totalPages = pages.length;
+      const pagesHTML = pages
+        .map(
+          (content, i) =>
+            `<div class="it-print-page" style="width:${size.width}px;min-height:${size.height}px">` +
+            content +
+            `<div class="it-print-page__footer">Page ${i + 1} of ${totalPages}</div>` +
+            `</div>`,
+        )
+        .join("");
+
+      this.printContainer.innerHTML = pagesHTML;
     } catch {
       this.printContainer.innerHTML =
         '<div class="it-print-empty">Error rendering print preview</div>';

@@ -172,14 +172,33 @@ export function renderDocSettingsBar(blocks: IntentBlock[]): HTMLElement {
       const parts: string[] = [];
       if (props.size) parts.push(String(props.size));
       if (props.margins) parts.push(`margins: ${props.margins}`);
-      summary.push(parts.join(" · ") || "page");
+      if (props.header) parts.push(`header: ${props.header}`);
+      if (props.footer) parts.push(`footer: ${props.footer}`);
+      summary.push(parts.join(" · ") || "page settings");
     } else if (b.type === "font") {
       const parts: string[] = [];
       if (props.family) parts.push(String(props.family));
       if (props.size) parts.push(String(props.size));
-      summary.push(parts.join(" ") || "font");
+      summary.push(parts.join(" ") || "font settings");
     } else {
       summary.push(`${b.type}: ${b.content ?? "..."}`);
+    }
+  }
+
+  // Build editable panel fields
+  const fields: string[] = [];
+  for (const b of settingBlocks) {
+    const props = b.properties ?? {};
+    fields.push(
+      `<div class="it-doc-settings__section"><strong>${esc(b.type)}:</strong> ${esc(b.content ?? "")}</div>`,
+    );
+    for (const [k, v] of Object.entries(props)) {
+      fields.push(
+        `<div class="it-doc-settings__field">` +
+          `<label class="it-doc-settings__label">${esc(k)}</label>` +
+          `<input class="it-doc-settings__input" data-block-id="${esc(b.id)}" data-prop="${esc(k)}" value="${esc(String(v))}" />` +
+          `</div>`,
+      );
     }
   }
 
@@ -189,7 +208,9 @@ export function renderDocSettingsBar(blocks: IntentBlock[]): HTMLElement {
       <span class="it-doc-settings__text">${esc(summary.join(" · "))}</span>
       <button class="it-doc-settings__toggle" type="button">Edit Settings ▾</button>
     </div>
-    <div class="it-doc-settings__panel hidden"></div>
+    <div class="it-doc-settings__panel hidden">
+      ${fields.join("")}
+    </div>
   `;
 
   return bar;

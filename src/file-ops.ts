@@ -303,22 +303,22 @@ export class FileOps {
             ? `${Math.floor(age / 60_000)} minutes ago`
             : `${Math.floor(age / 3_600_000)} hours ago`;
 
-      // Show restore banner
-      const banner = document.getElementById("restore-banner")!;
-      const ageEl = banner.querySelector(".restore-age");
-      if (ageEl) ageEl.textContent = ageText;
-      banner.classList.remove("hidden");
+      // Show inline restore indicator
+      const restoreEl = document.getElementById("restore-inline")!;
+      const textEl = restoreEl.querySelector(".restore-text");
+      if (textEl) textEl.textContent = `💾 Unsaved doc (${ageText})`;
+      restoreEl.classList.remove("hidden");
 
-      banner.querySelector(".restore-yes")?.addEventListener("click", () => {
+      restoreEl.querySelector(".restore-yes")?.addEventListener("click", () => {
         this.sync.setSource(data.source);
         this.tabManager.switchTab("edit");
-        banner.classList.add("hidden");
+        restoreEl.classList.add("hidden");
       });
 
-      banner.querySelector(".restore-no")?.addEventListener("click", () => {
+      restoreEl.querySelector(".restore-no")?.addEventListener("click", () => {
         localStorage.removeItem(AUTOSAVE_KEY);
         this.sync.setSource(STARTER_TEMPLATE);
-        banner.classList.add("hidden");
+        restoreEl.classList.add("hidden");
       });
     } catch {
       this.sync.setSource(STARTER_TEMPLATE);

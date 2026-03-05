@@ -1,5 +1,5 @@
 // ── Toolbar ─────────────────────────────────────────────────
-// Selection toolbar (floating on text select) + fixed block toolbar.
+// Unified toolbar (single bar) + floating selection toolbar.
 
 import { SyncEngine } from "./sync-engine";
 import type { BlockEditor } from "./block-editor";
@@ -8,7 +8,8 @@ export class Toolbar {
   private sync: SyncEngine;
   private blockEditor: BlockEditor | null = null;
   private floatingToolbar: HTMLElement;
-  private fixedToolbar: HTMLElement;
+  private formatGroup: HTMLElement;
+  private typeSelect: HTMLSelectElement;
 
   constructor(sync: SyncEngine) {
     this.sync = sync;
@@ -26,8 +27,11 @@ export class Toolbar {
     `;
     document.body.appendChild(this.floatingToolbar);
 
-    // Bind to the fixed toolbar in the DOM
-    this.fixedToolbar = document.getElementById("block-toolbar")!;
+    // Bind to the unified toolbar center (format group)
+    this.formatGroup = document.getElementById("toolbar-format-group")!;
+    this.typeSelect = document.getElementById(
+      "block-type-select",
+    ) as HTMLSelectElement;
 
     this.bindEvents();
   }
@@ -42,6 +46,13 @@ export class Toolbar {
     this.blockEditor = editor;
   }
 
+  /** Show/hide the format toolbar group based on active tab */
+  setEditMode(isEdit: boolean): void {
+    if (this.formatGroup) {
+      this.formatGroup.style.display = isEdit ? "flex" : "none";
+    }
+  }
+
   private bindEvents(): void {
     // Floating toolbar buttons
     this.floatingToolbar.addEventListener("mousedown", (e) => {
@@ -54,9 +65,9 @@ export class Toolbar {
       this.applyFormat(format);
     });
 
-    // Fixed toolbar buttons — block actions
-    if (this.fixedToolbar) {
-      this.fixedToolbar.addEventListener("click", (e) => {
+    // Unified toolbar — block actions + format + type + align buttons
+    if (this.formatGroup) {
+      this.formatGroup.addEventListener("click", (e) => {
         const actionBtn = (e.target as HTMLElement).closest(
           "[data-action]",
         ) as HTMLElement;
@@ -66,7 +77,7 @@ export class Toolbar {
           return;
         }
 
-        // Format buttons in toolbar
+        // Format buttons
         const fmtBtn = (e.target as HTMLElement).closest(
           "[data-format]",
         ) as HTMLElement;
@@ -76,14 +87,35 @@ export class Toolbar {
           return;
         }
 
-        // Keyword type-change buttons
-        const kwBtn = (e.target as HTMLElement).closest(
+        // Inline type buttons
+        const typeBtn = (e.target as HTMLElement).closest(
           "[data-type]",
         ) as HTMLElement;
-        if (kwBtn) {
+        if (typeBtn) {
           e.preventDefault();
-          this.handleTypeChange(kwBtn.dataset.type!);
+          this.handleTypeChange(typeBtn.dataset.type!);
           return;
+        }
+
+        // Alignment buttons
+        const alignBtn = (e.target as HTMLElement).closest(
+          "[data-align]",
+        ) as HTMLElement;
+        if (alignBtn) {
+          e.preventDefault();
+          this.handleAlignment(alignBtn.dataset.align!);
+          return;
+        }
+      });
+    }
+
+    // Block type select dropdown
+    if (this.typeSelect) {
+      this.typeSelect.addEventListener("change", () => {
+        const type = this.typeSelect.value;
+        if (type) {
+          this.handleTypeChange(type);
+          this.typeSelect.value = ""; // Reset to placeholder
         }
       });
     }
@@ -223,5 +255,21 @@ export class Toolbar {
     }
     this.blockEditor?.render();
     this.blockEditor?.focusBlockEnd(blockId);
+  }
+
+  private handleAlignment(align: string): void {
+    const activeBlock = document.querySelector(
+      ".it-block--active",
+    ) as HTMLElement;
+    if (!activeBlock) return;
+    // Toggle alignment classes
+    activeBlock.classList.remove(
+      "it-block--align-left",
+      "it-block--align-center",
+      "it-block--align-right",
+    );
+    if (align !== "left") {
+      activeBlock.classList.add(`it-block--align-${align}`);
+    }
   }
 }

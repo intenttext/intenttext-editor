@@ -387,4 +387,148 @@ note: Bank transfer to account details provided separately.
 
 footnote: 1 | All amounts in {{currency}}.`,
   },
+  {
+    id: "letter-template",
+    name: "Formal Letter",
+    icon: "✉️",
+    category: "docs",
+    description: "Business letter with header/footer",
+    content: `page: | size: A4 | margins: 25mm | header: {{company.name}} | footer: Page {{page}}
+
+title: {{subject}}
+
+section: Sender
+note: {{sender.name}}
+note: {{sender.title}}
+note: {{sender.address}}
+note: {{date}}
+
+section: Recipient
+note: {{recipient.name}}
+note: {{recipient.title}}
+note: {{recipient.company}}
+note: {{recipient.address}}
+
+divider:
+
+note: Dear {{recipient.name}},
+
+note: {{body.paragraph1}}
+
+note: {{body.paragraph2}}
+
+note: {{body.paragraph3}}
+
+note: Sincerely,
+
+note: {{sender.name}}
+note: {{sender.title}}`,
+  },
+  {
+    id: "report-template",
+    name: "Report",
+    icon: "📊",
+    category: "docs",
+    description: "Professional report with sections",
+    content: `font: | family: Inter | size: 11pt | leading: 1.6
+page: | size: A4 | margins: 25mm | header: {{report.title}} — Confidential | footer: Page {{page}} of {{pages}}
+
+title: {{report.title}}
+byline: {{author}} | role: {{author.role}} | date: {{date}}
+summary: {{executive.summary}}
+
+toc: | depth: 2
+
+section: Introduction
+note: {{introduction}}
+
+section: Methodology
+note: {{methodology}}
+
+section: Findings
+
+sub: Key Metrics
+| Metric | Value | Change |
+| {{metric.1.name}} | {{metric.1.value}} | {{metric.1.change}} |
+| {{metric.2.name}} | {{metric.2.value}} | {{metric.2.change}} |
+| {{metric.3.name}} | {{metric.3.value}} | {{metric.3.change}} |
+
+sub: Analysis
+note: {{analysis}}
+
+section: Recommendations
+task: {{recommendation.1}} | priority: high
+task: {{recommendation.2}} | priority: medium
+task: {{recommendation.3}} | priority: low
+
+section: Conclusion
+note: {{conclusion}}
+
+footnote: 1 | All data as of {{date}}.`,
+  },
+  {
+    id: "readme-template",
+    name: "README",
+    icon: "📖",
+    category: "docs",
+    description: "Software project README",
+    content: `title: {{project.name}}
+summary: {{project.description}}
+
+section: Installation
+code:
+{{install.command}}
+end:
+
+section: Quick Start
+code:
+{{quickstart.code}}
+end:
+
+section: Features
+- {{feature.1}}
+- {{feature.2}}
+- {{feature.3}}
+
+section: API Reference
+sub: {{api.method1.name}}
+note: {{api.method1.description}}
+code:
+{{api.method1.example}}
+end:
+
+section: Contributing
+note: Contributions are welcome! Please read our contributing guidelines first.
+
+section: License
+note: {{license}}`,
+  },
+  {
+    id: "changelog-template",
+    name: "Changelog",
+    icon: "🔄",
+    category: "docs",
+    description: "Version changelog with categories",
+    content: `title: Changelog
+
+section: [{{version}}] — {{date}}
+
+sub: Added
+- {{added.1}}
+- {{added.2}}
+
+sub: Changed
+- {{changed.1}}
+- {{changed.2}}
+
+sub: Fixed
+- {{fixed.1}}
+- {{fixed.2}}
+
+sub: Removed
+- {{removed.1}}
+
+section: [{{prev.version}}] — {{prev.date}}
+note: Previous release notes…`,
+  },
 ];
