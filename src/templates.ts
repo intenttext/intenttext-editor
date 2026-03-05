@@ -308,4 +308,83 @@ summary: v2.3 shipped and published to npm.`,
 note: Start writing here…
 `,
   },
+  {
+    id: "book-chapter",
+    name: "Book Chapter",
+    icon: "📖",
+    category: "docs",
+    description: "Book-style chapter with typography",
+    content: `font: | family: Palatino Linotype | size: 12pt | leading: 1.8
+page: | size: A5 | margins: 25mm
+
+title: *The Architecture of Intent*
+
+dedication: To the builders who write before they code.
+
+byline: Ahmed Al-Rashid | role: Author | date: 2026
+
+toc: | depth: 2 | title: Contents
+
+section: The Problem with Markup
+epigraph: The tools we build shape the thoughts we can think. | source: Kenneth Iverson
+
+Every document format forces a choice between human readability and machine parseability. Markdown optimized for the first. XML optimized for the second. Neither achieved both.
+
+IntentText proposes a third path: keywords that read like natural language but parse like structured data.
+
+sub: Why Keywords Matter
+A keyword like \`task:\` is simultaneously a heading, a data type, and an instruction. The writer sees a to-do item. The parser sees a typed block with properties. The AI agent sees an executable action.
+
+section: Design Principles
+note: Every line reads naturally in plain text.
+note: Keywords declare _intent_, not just appearance.
+note: Pipe metadata stays on the same line — no extra files.
+
+section: Looking Ahead
+The next chapter explores how IntentText enables multi-agent workflows — where documents become executable specifications.
+
+footnote: 1 | See Chapter 3 for the full agentic workflow specification.
+
+break:
+
+section: Notes
+caption: Figure 1 — The IntentText parsing pipeline`,
+  },
+  {
+    id: "invoice-template",
+    name: "Invoice Template",
+    icon: "🧾",
+    category: "docs",
+    description: "Professional invoice with {{variables}}",
+    content: `font: | family: Helvetica | size: 11pt | leading: 1.5
+page: | size: A4 | margins: 20mm | footer: Page {{page}} of {{pages}}
+
+title: *Invoice*
+
+section: From
+note: {{company.name}}
+note: {{company.address}}
+note: {{company.email}}
+
+section: Bill To
+note: {{client.name}}
+note: {{client.address}}
+
+divider:
+
+section: Invoice Details
+| Item | Description | Amount |
+| 1 | {{items.0.description}} | {{items.0.amount}} |
+| 2 | {{items.1.description}} | {{items.1.amount}} |
+
+divider:
+
+note: *Total: {{total}}*
+
+section: Payment Terms
+note: Payment due within 30 days of invoice date.
+note: Bank transfer to account details provided separately.
+
+footnote: 1 | All amounts in {{currency}}.`,
+  },
 ];

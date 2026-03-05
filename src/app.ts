@@ -2,6 +2,7 @@ import * as monaco from "monaco-editor";
 import {
   parseIntentText,
   renderHTML,
+  renderPrint,
   convertMarkdownToIntentText,
   queryBlocks,
 } from "@intenttext/core";
@@ -38,6 +39,11 @@ function registerIntentTextLanguage(): void {
         ],
         // Content keywords
         [/^(note|quote|summary|question|ask):/, "keyword.content"],
+        // Document generation keywords
+        [
+          /^(font|page|break|byline|epigraph|caption|footnote|toc|dedication):/,
+          "keyword.docgen",
+        ],
         // Callout keywords
         [/^(info|warning|tip|success):/, "keyword.callout"],
         // Media & link keywords
@@ -81,6 +87,7 @@ function registerIntentTextLanguage(): void {
       { token: "keyword.callout", foreground: "059669", fontStyle: "bold" },
       { token: "keyword.agentic", foreground: "0369A1", fontStyle: "bold" },
       { token: "keyword.interagent", foreground: "9333EA", fontStyle: "bold" },
+      { token: "keyword.docgen", foreground: "92400E", fontStyle: "bold" },
       { token: "keyword.media", foreground: "7C3AED" },
       { token: "keyword.divider", foreground: "9CA3AF" },
       { token: "keyword.table", foreground: "6366F1" },
@@ -139,6 +146,15 @@ function registerIntentTextCompletions(): void {
     "gate",
     "call",
     "emit",
+    "font",
+    "page",
+    "break",
+    "byline",
+    "epigraph",
+    "caption",
+    "footnote",
+    "toc",
+    "dedication",
   ];
 
   const props = [
@@ -181,6 +197,21 @@ function registerIntentTextCompletions(): void {
     "join",
     "on",
     "approver",
+    "family",
+    "size",
+    "leading",
+    "weight",
+    "heading",
+    "mono",
+    "margins",
+    "header",
+    "footer",
+    "columns",
+    "orientation",
+    "numbering",
+    "depth",
+    "role",
+    "source",
   ];
 
   monaco.languages.registerCompletionItemProvider("intenttext", {
@@ -520,6 +551,37 @@ function convertToMarkdown(doc: IntentDocument): string {
         lines.push(`> 📞 **Call:** ${content}${meta}`);
         break;
       }
+
+      // ── Document Generation ──
+      case "font":
+      case "page":
+        // Layout declarations — skip in markdown
+        break;
+      case "break":
+        lines.push("\n---\n");
+        break;
+      case "byline": {
+        const role = props.role ? `, ${props.role}` : "";
+        lines.push(`\n*${content}${role}*`);
+        break;
+      }
+      case "epigraph": {
+        const src = props.source ? `\n> — *${props.source}*` : "";
+        lines.push(`\n> *${content}*${src}`);
+        break;
+      }
+      case "caption":
+        lines.push(`\n*${content}*`);
+        break;
+      case "footnote":
+        lines.push(`[^${content}]: ${Object.values(props).join(" ")}`);
+        break;
+      case "toc":
+        lines.push("\n**Table of Contents**\n");
+        break;
+      case "dedication":
+        lines.push(`\n> *${content}*`);
+        break;
 
       default:
         if (content) {
@@ -1255,9 +1317,8 @@ export class IntentTextApp {
         break;
       case "html":
         if (this.currentDoc) {
-          const html = renderHTML(this.currentDoc);
-          const fullHtml = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>${this.getTitle()}</title>\n<style>\nbody { font-family: system-ui, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.6; }\ntable { border-collapse: collapse; width: 100%; }\nth, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\nth { background: #f5f5f5; }\nblockquote { border-left: 3px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: #555; }\n</style>\n</head>\n<body>\n${html}\n</body>\n</html>`;
-          this.downloadFile(fullHtml, "document.html", "text/html");
+          const printHtml = renderPrint(this.currentDoc);
+          this.downloadFile(printHtml, "document.html", "text/html");
         }
         break;
       case "md":
