@@ -323,8 +323,8 @@ export class BlockEditor {
         e.preventDefault();
         e.stopPropagation();
 
-        if (e.ctrlKey || e.metaKey) {
-          // Ctrl/Cmd+Enter → insert line break within same block
+        if (e.shiftKey) {
+          // Shift+Enter → insert line break within same block
           this.insertLineBreakInBlock(target, blockId);
         } else {
           // Enter → create new block below (with split if mid-block)
@@ -656,7 +656,7 @@ export class BlockEditor {
 
   // ── Enter key actions ─────────────────────────────────────
 
-  /** Insert a line break within the current block (Ctrl+Enter) */
+  /** Insert a line break within the current block (Shift+Enter) */
   private insertLineBreakInBlock(
     contentEl: HTMLElement,
     blockId: string,
