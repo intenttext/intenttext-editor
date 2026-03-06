@@ -423,6 +423,14 @@ export const SLASH_MENU_ITEMS: SlashMenuItem[] = [
     icon: "📋",
     category: "Agentic",
   },
+  // Trust
+  {
+    type: "approve",
+    label: "approve",
+    description: "Workflow approval",
+    icon: "✓",
+    category: "Trust",
+  },
   // Structure
   {
     type: "divider",

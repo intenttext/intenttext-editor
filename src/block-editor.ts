@@ -2,7 +2,7 @@
 // The WYSIWYG block editor: renders blocks as contenteditable divs.
 // Implements the full native editor UX contract from Editor.md.
 
-import type { IntentBlock } from "@intenttext/core";
+import type { IntentBlock, IntentDocument } from "@intenttext/core";
 import { SyncEngine } from "./sync-engine";
 import {
   renderBlockElement,
@@ -14,6 +14,13 @@ import { REQUIRES_PROPERTIES } from "./block-schemas";
 import { SlashMenu } from "./slash-menu";
 import { UndoStack } from "./undo-stack";
 import type { PageView } from "./page-view";
+
+/** Trust state of the current document */
+export type DocumentTrustState =
+  | "untracked" // no track: block — normal editing
+  | "tracked" // has track: block — history being recorded
+  | "signed" // has sign: blocks — show warning on edit
+  | "frozen"; // has freeze: block — read only, no editing
 
 /** Placeholder text by block type */
 const PLACEHOLDERS: Record<string, string> = {
@@ -42,6 +49,8 @@ export class BlockEditor {
   private typingSnapshotTimer: ReturnType<typeof setTimeout> | null = null;
   private hasUnsavedChanges = false;
   private pageView: PageView | null = null;
+  private trustState: DocumentTrustState = "untracked";
+  private signedWarningShown = false;
 
   constructor(container: HTMLElement, sync: SyncEngine) {
     this.container = container;
@@ -56,12 +65,37 @@ export class BlockEditor {
     requestAnimationFrame(() => this.focusFirstBlock());
   }
 
+  /** Determine the document trust state from current blocks */
+  private detectTrustState(doc: IntentDocument): DocumentTrustState {
+    const blocks = this.flattenBlocks(doc.blocks);
+    const hasFreeze = blocks.some((b) => b.type === "freeze");
+    if (hasFreeze) return "frozen";
+    const hasSign = blocks.some((b) => b.type === "sign");
+    if (hasSign) return "signed";
+    const hasTrack =
+      blocks.some((b) => b.type === "track") || doc.metadata?.tracking?.active;
+    if (hasTrack) return "tracked";
+    return "untracked";
+  }
+
+  /** Get current trust state */
+  getTrustState(): DocumentTrustState {
+    return this.trustState;
+  }
+
   /** Full re-render from the sync engine's document */
   render(): void {
     const doc = this.sync.getDocument();
     const blocks = this.flattenBlocks(doc.blocks);
+    this.trustState = this.detectTrustState(doc);
 
     this.container.innerHTML = "";
+
+    // Frozen document: show sealed banner and read-only content
+    if (this.trustState === "frozen") {
+      this.renderFrozenView(blocks, doc);
+      return;
+    }
 
     // Document settings bar
     const settingsBar = renderDocSettingsBar(blocks);
@@ -147,6 +181,98 @@ export class BlockEditor {
   /** Set a reference to the PageView engine */
   setPageView(pv: PageView): void {
     this.pageView = pv;
+  }
+
+  /** Render frozen (sealed) document in read-only mode */
+  private renderFrozenView(blocks: IntentBlock[], doc: IntentDocument): void {
+    const banner = document.createElement("div");
+    banner.className = "it-frozen-banner";
+
+    const freeze = doc.metadata?.freeze;
+    const dateStr = freeze?.at
+      ? new Date(freeze.at).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZoneName: "short",
+        })
+      : "";
+
+    const signers = doc.metadata?.signatures ?? [];
+    const signerHTML = signers
+      .map(
+        (s) =>
+          `<span class="it-frozen-banner__signer">${s.signer}${s.role ? ` (${s.role})` : ""} ✅</span>`,
+      )
+      .join("");
+
+    banner.innerHTML = `
+      <div class="it-frozen-banner__icon">🔒</div>
+      <div class="it-frozen-banner__title">SEALED DOCUMENT</div>
+      ${dateStr ? `<div class="it-frozen-banner__date">Frozen: ${dateStr}</div>` : ""}
+      ${signerHTML ? `<div class="it-frozen-banner__signers">Signers: ${signerHTML}</div>` : ""}
+      <div class="it-frozen-banner__hash">Hash verified ✅</div>
+    `;
+    this.container.appendChild(banner);
+
+    const canvas = document.createElement("div");
+    canvas.className = "it-editor-canvas it-editor-canvas--frozen";
+    this.container.appendChild(canvas);
+
+    for (const block of blocks) {
+      if (isDocumentSetting(block.type)) continue;
+      const el = renderBlockElement(block);
+      // Disable all editing in frozen mode
+      const contentEl = el.querySelector(".it-block__content") as HTMLElement;
+      if (contentEl) contentEl.contentEditable = "false";
+      canvas.appendChild(el);
+    }
+  }
+
+  /** Show warning modal when editing a signed document */
+  private showSignedWarning(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const doc = this.sync.getDocument();
+      const signers = doc.metadata?.signatures ?? [];
+      const signerList = signers
+        .map(
+          (s) =>
+            `• ${s.signer}${s.role ? ` (${s.role})` : ""} — signed ${s.at ? new Date(s.at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : ""}`,
+        )
+        .join("\n");
+
+      const overlay = document.createElement("div");
+      overlay.className = "it-modal-overlay";
+      overlay.innerHTML = `
+        <div class="it-modal">
+          <div class="it-modal__icon">⚠️</div>
+          <div class="it-modal__title">This document has been signed.</div>
+          <div class="it-modal__body">Editing will invalidate the following signatures:\n${signerList}\n\nDo you want to proceed? The signatures will be marked invalid and will need to be renewed.</div>
+          <div class="it-modal__actions">
+            <button class="it-modal__btn it-modal__btn--cancel">Cancel</button>
+            <button class="it-modal__btn it-modal__btn--danger">Proceed and invalidate signatures</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      overlay
+        .querySelector(".it-modal__btn--cancel")
+        ?.addEventListener("click", () => {
+          overlay.remove();
+          resolve(false);
+        });
+      overlay
+        .querySelector(".it-modal__btn--danger")
+        ?.addEventListener("click", () => {
+          overlay.remove();
+          this.signedWarningShown = true;
+          resolve(true);
+        });
+    });
   }
 
   /** Get the undo stack (for external use by TabManager etc.) */
@@ -294,8 +420,30 @@ export class BlockEditor {
   // ── Event handling ────────────────────────────────────────
 
   private bindEvents(): void {
+    // Guard: block all editing in frozen documents
+    this.container.addEventListener("beforeinput", (e) => {
+      if (this.trustState === "frozen") {
+        e.preventDefault();
+        return;
+      }
+    });
+
     // Delegate input events from contenteditable areas
     this.container.addEventListener("input", (e) => {
+      if (this.trustState === "frozen") return;
+
+      // Show signed document warning on first edit
+      if (this.trustState === "signed" && !this.signedWarningShown) {
+        // Revert the edit and show warning
+        const target = e.target as HTMLElement;
+        this.showSignedWarning().then((proceed) => {
+          if (!proceed) {
+            this.render(); // restore original content
+          }
+        });
+        return;
+      }
+
       const target = e.target as HTMLElement;
       if (!target.classList.contains("it-block__content")) return;
       const blockEl = target.closest(".it-block") as HTMLElement;
@@ -310,6 +458,11 @@ export class BlockEditor {
 
     // Keydown for block-level actions
     this.container.addEventListener("keydown", (e) => {
+      if (this.trustState === "frozen") {
+        e.preventDefault();
+        return;
+      }
+
       const target = e.target as HTMLElement;
       if (!target.classList.contains("it-block__content")) return;
       const blockEl = target.closest(".it-block") as HTMLElement;

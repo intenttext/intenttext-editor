@@ -95,6 +95,81 @@ export function renderBlockElement(block: IntentBlock): HTMLElement {
   el.dataset.blockType = blockType;
   el.dataset.blockId = block.id;
 
+  // Trust blocks — special rendering
+  if (blockType === "track" || blockType === "revision") {
+    // Invisible — metadata only
+    el.style.display = "none";
+    return el;
+  }
+
+  if (blockType === "freeze") {
+    const props = block.properties ?? {};
+    const dateStr = props.at
+      ? new Date(props.at).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+      : "";
+    const hash = props.hash ? String(props.hash).slice(0, 20) + "..." : "";
+    el.innerHTML = `<div class="it-sealed-banner">
+      <span class="it-sealed-banner__icon">🔒</span>
+      <span class="it-sealed-banner__text">Sealed Document</span>
+      ${dateStr ? `<span class="it-sealed-banner__date">${esc(dateStr)}</span>` : ""}
+      ${hash ? `<span class="it-sealed-banner__hash">${esc(hash)}</span>` : ""}
+    </div>`;
+    return el;
+  }
+
+  if (blockType === "sign") {
+    const name = block.content ?? "";
+    const props = block.properties ?? {};
+    const role = props.role ?? "";
+    const dateStr = props.at
+      ? new Date(String(props.at)).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZoneName: "short",
+        })
+      : "";
+    const valid = block.properties?._valid !== "false";
+    el.innerHTML = `<div class="it-signature ${valid ? "it-signature--valid" : "it-signature--invalid"}">
+      <span class="it-signature__status">${valid ? "✅" : "❌"}</span>
+      <span class="it-signature__name">${esc(name)}</span>
+      ${role ? `<span class="it-signature__role">${esc(String(role))}</span>` : ""}
+      ${dateStr ? `<span class="it-signature__date">${valid ? "Signed: " : ""}${esc(dateStr)}${valid ? "" : " — INVALID"}</span>` : ""}
+      ${!valid ? `<span class="it-signature__warning">Document was modified after signing</span>` : ""}
+    </div>`;
+    return el;
+  }
+
+  if (blockType === "approve") {
+    const desc = block.content ?? "";
+    const props = block.properties ?? {};
+    const by = props.by ?? "";
+    const role = props.role ?? "";
+    const dateStr = props.at
+      ? new Date(String(props.at)).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZoneName: "short",
+        })
+      : "";
+    el.innerHTML = `<div class="it-approval">
+      <span class="it-approval__icon">✓</span>
+      <span class="it-approval__label">APPROVED${desc ? " — " + esc(desc) : ""}</span>
+      <span class="it-approval__who">${esc(String(by))}${role ? " — " + esc(String(role)) : ""}</span>
+      ${dateStr ? `<span class="it-approval__date">${esc(dateStr)}</span>` : ""}
+    </div>`;
+    return el;
+  }
+
   // Special cases
   if (blockType === "divider") {
     el.innerHTML = `<hr class="it-block__divider" />`;
