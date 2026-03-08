@@ -37,14 +37,21 @@ export function HistoryModal({ content, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 560 }}
       >
-        <h2>📜 Revision History</h2>
+        <h2>Revision History</h2>
 
         {error && (
           <p style={{ color: "var(--error)", fontSize: 13 }}>{error}</p>
         )}
 
         {revisions.length === 0 && !error && (
-          <p style={{ fontSize: 14, color: "var(--text-muted)", textAlign: "center", padding: 16 }}>
+          <p
+            style={{
+              fontSize: 14,
+              color: "var(--text-muted)",
+              textAlign: "center",
+              padding: 16,
+            }}
+          >
             No revision history found in this document.
           </p>
         )}
@@ -86,7 +93,13 @@ export function HistoryModal({ content, onClose }: Props) {
                   )}
                 </div>
                 {rev.author && (
-                  <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 4px" }}>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-muted)",
+                      margin: "0 0 4px",
+                    }}
+                  >
                     By {rev.author}
                   </p>
                 )}
@@ -108,17 +121,36 @@ export function HistoryModal({ content, onClose }: Props) {
                   </p>
                 )}
                 {rev.now && (
-                  <p style={{ fontSize: 12, margin: "0 0 2px", color: "#22c55e" }}>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      margin: "0 0 2px",
+                      color: "#22c55e",
+                    }}
+                  >
                     {rev.now}
                   </p>
                 )}
                 {rev.ref && (
-                  <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0" }}>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      margin: "4px 0 0",
+                    }}
+                  >
                     Ref: {rev.ref}
                   </p>
                 )}
                 {rev.note && (
-                  <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0", fontStyle: "italic" }}>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-muted)",
+                      margin: "4px 0 0",
+                      fontStyle: "italic",
+                    }}
+                  >
                     {rev.note}
                   </p>
                 )}

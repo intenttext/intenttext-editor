@@ -160,11 +160,11 @@ export const ITCallout = Node.create({
     const variant = node.attrs.variant || "tip";
     const props = safeParse(node.attrs.props);
     const icons: Record<string, string> = {
-      tip: "💡",
-      info: "ℹ️",
-      warning: "⚠️",
-      danger: "🚨",
-      success: "✅",
+      tip: "tip",
+      info: "info",
+      warning: "warning",
+      danger: "danger",
+      success: "success",
     };
     return [
       "div",
@@ -176,8 +176,11 @@ export const ITCallout = Node.create({
       }),
       [
         "span",
-        { class: "it-doc-callout-icon", contenteditable: "false" },
-        icons[variant] || "💡",
+        {
+          class: `it-doc-callout-icon it-doc-callout-icon-${icons[variant] || "tip"}`,
+          contenteditable: "false",
+        },
+        "",
       ],
       ["span", { class: "it-doc-callout-text" }, 0],
     ];

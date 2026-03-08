@@ -51,11 +51,19 @@ export function VerifyModal({ content, onClose }: Props) {
                 border: `1px solid ${result.intact ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
               }}
             >
-              <span style={{ fontSize: 24 }}>
-                {result.intact ? "✅" : "❌"}
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: result.intact ? "#22c55e" : "#ef4444",
+                }}
+              >
+                {result.intact ? "PASS" : "FAIL"}
               </span>
               <div>
-                <strong style={{ color: result.intact ? "#22c55e" : "#ef4444" }}>
+                <strong
+                  style={{ color: result.intact ? "#22c55e" : "#ef4444" }}
+                >
                   {result.intact ? "Document Intact" : "Document Tampered"}
                 </strong>
                 <br />
@@ -101,7 +109,9 @@ export function VerifyModal({ content, onClose }: Props) {
                       </span>
                     )}
                     {s.at && (
-                      <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                      <span
+                        style={{ color: "var(--text-muted)", fontSize: 11 }}
+                      >
                         {s.at}
                       </span>
                     )}

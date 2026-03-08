@@ -180,11 +180,11 @@ function renderBlockContent(
   // Callouts: tip, info, warning, danger, success
   if (["tip", "info", "warning", "danger", "success"].includes(type)) {
     const icons: Record<string, string> = {
-      tip: "💡",
-      info: "ℹ️",
-      warning: "⚠️",
-      danger: "🚨",
-      success: "✅",
+      tip: "Tip",
+      info: "Info",
+      warning: "Warn",
+      danger: "Alert",
+      success: "OK",
     };
     return (
       <div className={`it-callout it-callout-${type}`}>
@@ -274,7 +274,7 @@ function renderBlockContent(
           />
         ) : (
           <div className="it-image-placeholder">
-            🖼️ Image
+            Image
             {!isReadOnly && (
               <EditableInline
                 value={block.properties.src || ""}
@@ -308,7 +308,7 @@ function renderBlockContent(
             className="it-image"
           />
         ) : (
-          <div className="it-image-placeholder">🖼️ Figure</div>
+          <div className="it-image-placeholder">Figure</div>
         )}
         <EditableText
           value={block.properties.caption || block.content}
@@ -331,7 +331,7 @@ function renderBlockContent(
   if (type === "link") {
     return (
       <div className="it-link-block">
-        <span className="it-link-icon">🔗</span>
+        <span className="it-link-icon">Link</span>
         <div className="it-link-body">
           <EditableText
             value={block.content}
@@ -505,7 +505,7 @@ function renderBlockContent(
   if (type === "deadline") {
     return (
       <div className="it-deadline-block">
-        <span className="it-deadline-icon">📅</span>
+        <span className="it-deadline-icon">Due</span>
         <div className="it-deadline-body">
           <EditableText
             value={block.content}
@@ -591,7 +591,7 @@ function renderBlockContent(
 
   // Input / Output
   if (type === "input" || type === "output") {
-    const icon = type === "input" ? "📥" : "📤";
+    const icon = type === "input" ? "In" : "Out";
     return (
       <div className={`it-io-block it-${type}-block`}>
         <span>{icon}</span>
@@ -612,7 +612,7 @@ function renderBlockContent(
   if (type === "approve") {
     return (
       <div className="it-trust-card it-approve">
-        <span className="it-trust-icon">✅</span>
+        <span className="it-trust-icon">Approved</span>
         <div>
           <strong>Approved</strong>
           {block.properties.by && <span> by {block.properties.by}</span>}
@@ -630,7 +630,7 @@ function renderBlockContent(
   if (type === "sign") {
     return (
       <div className="it-trust-card it-sign">
-        <span className="it-trust-icon">✍️</span>
+        <span className="it-trust-icon">Signed</span>
         <div>
           <strong>Signed</strong>
           {block.properties.by && <span> by {block.properties.by}</span>}
@@ -648,7 +648,7 @@ function renderBlockContent(
   if (type === "freeze") {
     return (
       <div className="it-freeze-banner">
-        <span>🔒</span>
+        <span className="it-trust-icon">Sealed</span>
         <strong>Document Sealed</strong>
         {block.properties.by && <span> by {block.properties.by}</span>}
         {block.properties.hash && (
@@ -663,7 +663,7 @@ function renderBlockContent(
   if (type === "revision") {
     return (
       <div className="it-trust-card it-revision">
-        <span>📜</span>
+        <span className="it-trust-icon">Rev</span>
         <span>v{block.content}</span>
         {block.properties.by && <span> — {block.properties.by}</span>}
         {block.properties.at && (
@@ -676,7 +676,7 @@ function renderBlockContent(
   if (type === "amendment") {
     return (
       <div className="it-amendment-card">
-        <span>📝</span>
+        <span className="it-trust-icon">Amend</span>
         <div>
           <strong>Amendment</strong>
           {block.properties.section && (
@@ -698,7 +698,7 @@ function renderBlockContent(
   if (type === "policy") {
     return (
       <div className="it-trust-card it-policy">
-        <span>🛡️</span>
+        <span className="it-trust-icon">Policy</span>
         <EditableText
           value={block.content}
           onChange={(v) => onUpdate({ ...block, content: v })}
@@ -733,7 +733,7 @@ function renderBlockContent(
   if (type === "track") {
     return (
       <div className="it-track-badge">
-        📋 v{block.properties.version || block.content}
+        v{block.properties.version || block.content}
         {block.properties.by && <span> by {block.properties.by}</span>}
       </div>
     );
@@ -856,35 +856,35 @@ function AgentBlockRenderer({
   onUpdate: (b: VisualBlock) => void;
 }) {
   const icons: Record<string, string> = {
-    step: "⚙️",
-    gate: "🚦",
-    trigger: "⚡",
-    signal: "📡",
-    decision: "🔀",
-    memory: "🧠",
-    prompt: "💬",
-    tool: "🔧",
-    audit: "✓",
-    done: "✅",
-    error: "❌",
-    result: "📋",
-    handoff: "🤝",
-    wait: "⏳",
-    parallel: "⏸",
-    retry: "🔄",
-    call: "📞",
-    loop: "🔁",
-    checkpoint: "📍",
-    import: "📥",
-    export: "📤",
-    progress: "📊",
-    assert: "✓",
-    secret: "🔑",
-    task: "☑️",
-    ask: "❓",
-    agent: "🤖",
-    model: "🧩",
-    policy: "🛡️",
+    step: "step",
+    gate: "gate",
+    trigger: "trig",
+    signal: "sig",
+    decision: "dec",
+    memory: "mem",
+    prompt: "prmt",
+    tool: "tool",
+    audit: "aud",
+    done: "done",
+    error: "err",
+    result: "res",
+    handoff: "hand",
+    wait: "wait",
+    parallel: "para",
+    retry: "retry",
+    call: "call",
+    loop: "loop",
+    checkpoint: "chk",
+    import: "imp",
+    export: "exp",
+    progress: "prog",
+    assert: "asrt",
+    secret: "sec",
+    task: "task",
+    ask: "ask",
+    agent: "agnt",
+    model: "mdl",
+    policy: "pol",
   };
 
   const propEntries = Object.entries(block.properties).filter(
@@ -893,7 +893,7 @@ function AgentBlockRenderer({
 
   return (
     <div className="it-agent-block">
-      <span className="it-agent-icon">{icons[block.type] || "⚙️"}</span>
+      <span className="it-agent-icon">{icons[block.type] || "cmd"}</span>
       <div className="it-agent-body">
         <EditableText
           value={block.content}
@@ -928,12 +928,12 @@ function LayoutBlockRenderer({
   onUpdate: (b: VisualBlock) => void;
 }) {
   const icons: Record<string, string> = {
-    page: "📄",
-    font: "🔤",
-    header: "↑",
-    footer: "↓",
-    watermark: "💧",
-    signline: "✒️",
+    page: "pg",
+    font: "Aa",
+    header: "hdr",
+    footer: "ftr",
+    watermark: "wm",
+    signline: "sig",
   };
 
   const propEntries = Object.entries(block.properties).filter(
@@ -942,7 +942,7 @@ function LayoutBlockRenderer({
 
   return (
     <div className="it-layout-block">
-      <span className="it-layout-icon">{icons[block.type] || "📄"}</span>
+      <span className="it-layout-icon">{icons[block.type] || "pg"}</span>
       <div className="it-layout-body">
         <span className="it-layout-type">{block.type}</span>
         {block.content && (

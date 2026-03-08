@@ -42,13 +42,13 @@ function toMarkdown(content: string): string {
           lines.push(`\n> ${c}`);
           break;
         case "warning":
-          lines.push(`\n> ⚠️ ${c}`);
+          lines.push(`\n> **Warning:** ${c}`);
           break;
         case "tip":
-          lines.push(`\n> 💡 ${c}`);
+          lines.push(`\n> **Tip:** ${c}`);
           break;
         case "info":
-          lines.push(`\n> ℹ️ ${c}`);
+          lines.push(`\n> **Info:** ${c}`);
           break;
         case "link":
           lines.push(`[${c}](${b.properties?.to ?? "#"})`);
@@ -116,17 +116,17 @@ export function ExportMenu({ content, theme, onClose }: Props) {
   return (
     <div className="dropdown-menu">
       <button className="dropdown-item" onClick={exportPDF}>
-        📄 Export as PDF
+        Export as PDF
       </button>
       <button className="dropdown-item" onClick={exportHTML}>
-        🌐 Export as HTML
+        Export as HTML
       </button>
       <button className="dropdown-item" onClick={exportMarkdown}>
-        📝 Export as Markdown
+        Export as Markdown
       </button>
       <div className="dropdown-sep" />
       <button className="dropdown-item" onClick={copyHTML}>
-        📋 Copy HTML to clipboard
+        Copy HTML to clipboard
       </button>
     </div>
   );

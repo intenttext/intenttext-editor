@@ -38,8 +38,10 @@ export function AmendModal({ content, onApply, onClose }: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>✏️ Amend Sealed Document</h2>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+        <h2>Amend Sealed Document</h2>
+        <p
+          style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}
+        >
           Create a tracked amendment to a sealed document. The original seal
           remains intact — changes are recorded in the revision history.
         </p>

@@ -36,10 +36,12 @@ export function SealModal({ content, onApply, onClose }: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>🔒 Seal Document</h2>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
-          Sealing creates a content hash that prevents tampering. No further edits
-          are allowed without an amendment.
+        <h2>Seal Document</h2>
+        <p
+          style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}
+        >
+          Sealing creates a content hash that prevents tampering. No further
+          edits are allowed without an amendment.
         </p>
         <label>Signer Name *</label>
         <input

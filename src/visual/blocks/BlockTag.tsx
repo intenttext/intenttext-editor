@@ -21,7 +21,7 @@ export function BlockTag({ keyword }: Props) {
       }}
     >
       {cat?.icon} {keyword}
-      {READ_ONLY_KEYWORDS.has(keyword) && " 🔒"}
+      {READ_ONLY_KEYWORDS.has(keyword) && " (locked)"}
     </span>
   );
 }

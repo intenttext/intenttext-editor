@@ -113,15 +113,35 @@ export function VisualEditor({ value, onChange }: Props) {
   const pageRef = useRef<HTMLDivElement>(null);
   const [pageCount, setPageCount] = useState(1);
 
+  const recalcPages = useCallback(() => {
+    const el = pageRef.current;
+    if (!el) return;
+    const tiptap = el.querySelector(".tiptap") as HTMLElement | null;
+    if (!tiptap) return;
+    // Content height = tiptap's scrollHeight + top/bottom padding (96 each)
+    const totalHeight = tiptap.scrollHeight + 192;
+    setPageCount(Math.max(1, Math.ceil(totalHeight / PAGE_HEIGHT)));
+  }, []);
+
   useEffect(() => {
     const el = pageRef.current;
     if (!el) return;
-    const observer = new ResizeObserver(() => {
-      setPageCount(Math.max(1, Math.ceil(el.scrollHeight / PAGE_HEIGHT)));
-    });
+    const observer = new ResizeObserver(recalcPages);
     observer.observe(el);
+    // Also observe the tiptap element itself for content growth
+    const tiptap = el.querySelector(".tiptap");
+    if (tiptap) observer.observe(tiptap);
     return () => observer.disconnect();
-  }, []);
+  }, [recalcPages]);
+
+  // Also recalculate pages on every editor update
+  useEffect(() => {
+    if (!editor) return;
+    editor.on("update", recalcPages);
+    return () => {
+      editor.off("update", recalcPages);
+    };
+  }, [editor, recalcPages]);
 
   // Word count for the page indicator
   const getWordCount = useCallback(() => {
@@ -136,16 +156,18 @@ export function VisualEditor({ value, onChange }: Props) {
     <div className="docs-container">
       <DocsToolbar editor={editor} />
       <div className="docs-canvas">
-        <div className="docs-page" ref={pageRef}>
+        <div
+          className="docs-page"
+          ref={pageRef}
+          style={{ minHeight: pageCount * PAGE_HEIGHT }}
+        >
           <EditorContent editor={editor} />
           {Array.from({ length: pageCount - 1 }, (_, i) => (
             <div
               key={i}
               className="docs-page-break-marker"
               style={{ top: (i + 1) * PAGE_HEIGHT }}
-            >
-              <span className="docs-page-break-label">Page {i + 2}</span>
-            </div>
+            />
           ))}
         </div>
         <div className="docs-page-footer">

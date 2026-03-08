@@ -24,6 +24,20 @@ import {
   Highlighter,
   RemoveFormatting,
   ChevronDown,
+  SeparatorHorizontal,
+  Scissors,
+  FileCode2,
+  Lightbulb,
+  Info,
+  AlertTriangle,
+  ShieldAlert,
+  CircleCheck,
+  ImageIcon,
+  Link2,
+  UserRound,
+  BarChart3,
+  CalendarClock,
+  BookOpen,
 } from "lucide-react";
 
 interface Props {
@@ -41,21 +55,21 @@ const STYLE_OPTIONS = [
 ] as const;
 
 const INSERT_OPTIONS = [
-  { label: "Divider", keyword: "divider", icon: "―" },
-  { label: "Page break", keyword: "break", icon: "⎘" },
-  { label: "Code block", keyword: "code", icon: "</>" },
-  { label: "Tip", keyword: "tip", icon: "💡" },
-  { label: "Info", keyword: "info", icon: "ℹ️" },
-  { label: "Warning", keyword: "warning", icon: "⚠️" },
-  { label: "Danger", keyword: "danger", icon: "🚨" },
-  { label: "Success", keyword: "success", icon: "✅" },
-  { label: "Image", keyword: "image", icon: "🖼" },
-  { label: "Link", keyword: "link", icon: "🔗" },
-  { label: "Contact", keyword: "contact", icon: "👤" },
-  { label: "Metric", keyword: "metric", icon: "📊" },
-  { label: "Deadline", keyword: "deadline", icon: "📅" },
-  { label: "Definition", keyword: "def", icon: "📖" },
-] as const;
+  { label: "Divider", keyword: "divider", Icon: SeparatorHorizontal },
+  { label: "Page break", keyword: "break", Icon: Scissors },
+  { label: "Code block", keyword: "code", Icon: FileCode2 },
+  { label: "Tip", keyword: "tip", Icon: Lightbulb },
+  { label: "Info", keyword: "info", Icon: Info },
+  { label: "Warning", keyword: "warning", Icon: AlertTriangle },
+  { label: "Danger", keyword: "danger", Icon: ShieldAlert },
+  { label: "Success", keyword: "success", Icon: CircleCheck },
+  { label: "Image", keyword: "image", Icon: ImageIcon },
+  { label: "Link", keyword: "link", Icon: Link2 },
+  { label: "Contact", keyword: "contact", Icon: UserRound },
+  { label: "Metric", keyword: "metric", Icon: BarChart3 },
+  { label: "Deadline", keyword: "deadline", Icon: CalendarClock },
+  { label: "Definition", keyword: "def", Icon: BookOpen },
+];
 
 const FONT_FAMILIES = [
   { label: "Default", value: "" },
@@ -623,7 +637,9 @@ export function DocsToolbar({ editor }: Props) {
                 className="docs-tb-dropdown-item"
                 onClick={() => insertBlock(opt.keyword)}
               >
-                <span className="docs-insert-icon">{opt.icon}</span>
+                <span className="docs-insert-icon">
+                  <opt.Icon size={16} />
+                </span>
                 <span>{opt.label}</span>
               </button>
             ))}

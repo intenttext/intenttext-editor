@@ -6,16 +6,16 @@ export function TrustMenu({ onAction }: Props) {
   return (
     <div className="dropdown-menu">
       <button className="dropdown-item" onClick={() => onAction("seal")}>
-        🔒 Seal document
+        Seal document
       </button>
       <button className="dropdown-item" onClick={() => onAction("verify")}>
-        ✓ Verify document
+        Verify document
       </button>
       <button className="dropdown-item" onClick={() => onAction("history")}>
-        📜 View history
+        View history
       </button>
       <button className="dropdown-item" onClick={() => onAction("amend")}>
-        ✏️ Add amendment
+        Add amendment
       </button>
     </div>
   );

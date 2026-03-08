@@ -104,7 +104,7 @@ export function Toolbar({
           onClick={() => onEditorModeChange("visual")}
           title="Visual mode"
         >
-          ✏️ Visual
+          Visual
         </button>
         <button
           className={`tbtn ${editorMode === "source" ? "active" : ""}`}
