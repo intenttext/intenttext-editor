@@ -1,8 +1,15 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import { DocsToolbar } from "./DocsToolbar";
+import Underline from "@tiptap/extension-underline";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import Highlight from "@tiptap/extension-highlight";
+import TextAlign from "@tiptap/extension-text-align";
+import FontFamily from "@tiptap/extension-font-family";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
 import { sourceToDoc, docToSource } from "./bridge";
 import {
   ITTitle,
@@ -17,6 +24,7 @@ import {
   ITGenericBlock,
   ITComment,
 } from "./extensions";
+import { DocsToolbar } from "./DocsToolbar";
 
 interface Props {
   value: string;
@@ -34,7 +42,6 @@ export function VisualEditor({ value, onChange }: Props) {
         codeBlock: false,
         blockquote: false,
         horizontalRule: false,
-        // Keep: paragraph, bold, italic, strike, code (inline), history, hardBreak
       }),
       Placeholder.configure({
         placeholder: ({ node }) => {
@@ -45,6 +52,16 @@ export function VisualEditor({ value, onChange }: Props) {
           return "Start typing...";
         },
       }),
+      Underline,
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
+      TextAlign.configure({
+        types: ["paragraph", "itTitle", "itSummary", "itSection", "itSub"],
+      }),
+      FontFamily,
+      Subscript,
+      Superscript,
       ITTitle,
       ITSummary,
       ITSection,
@@ -91,21 +108,48 @@ export function VisualEditor({ value, onChange }: Props) {
     document.documentElement.setAttribute("data-theme", "light");
   }, []);
 
+  // Multi-page: track content height and compute page count
+  const PAGE_HEIGHT = 1056;
+  const pageRef = useRef<HTMLDivElement>(null);
+  const [pageCount, setPageCount] = useState(1);
+
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      setPageCount(Math.max(1, Math.ceil(el.scrollHeight / PAGE_HEIGHT)));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // Word count for the page indicator
   const getWordCount = useCallback(() => {
     if (!editor) return 0;
-    return editor.storage.characterCount?.words?.() ?? 
-      editor.getText().split(/\s+/).filter(Boolean).length;
+    return (
+      editor.storage.characterCount?.words?.() ??
+      editor.getText().split(/\s+/).filter(Boolean).length
+    );
   }, [editor]);
 
   return (
     <div className="docs-container">
       <DocsToolbar editor={editor} />
       <div className="docs-canvas">
-        <div className="docs-page">
+        <div className="docs-page" ref={pageRef}>
           <EditorContent editor={editor} />
+          {Array.from({ length: pageCount - 1 }, (_, i) => (
+            <div
+              key={i}
+              className="docs-page-break-marker"
+              style={{ top: (i + 1) * PAGE_HEIGHT }}
+            >
+              <span className="docs-page-break-label">Page {i + 2}</span>
+            </div>
+          ))}
         </div>
         <div className="docs-page-footer">
+          {pageCount} {pageCount === 1 ? "page" : "pages"} &middot;{" "}
           {getWordCount()} words
         </div>
       </div>

@@ -21,7 +21,10 @@ export const ITTitle = Node.create({
 
   addAttributes() {
     return {
-      props: { default: "{}", parseHTML: (el) => el.getAttribute("data-props") || "{}" },
+      props: {
+        default: "{}",
+        parseHTML: (el) => el.getAttribute("data-props") || "{}",
+      },
     };
   },
 
@@ -310,7 +313,11 @@ export const ITGenericBlock = Node.create({
         class: `it-doc-generic it-doc-kw-${kw}`,
         style: buildStyle(kw, props),
       }),
-      ["span", { class: "it-doc-generic-label", contenteditable: "false" }, `${kw}:`],
+      [
+        "span",
+        { class: "it-doc-generic-label", contenteditable: "false" },
+        `${kw}:`,
+      ],
       ["span", { class: "it-doc-generic-content" }, 0],
     ];
   },

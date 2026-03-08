@@ -4,14 +4,34 @@
 // Unknown properties are silently ignored and preserved.
 
 export type StyleProperty =
-  | "align" | "color" | "bgcolor" | "size" | "weight" | "style"
-  | "border" | "padding" | "indent" | "opacity" | "radius" | "shadow"
-  | "width" | "height" | "spacing" | "columns" | "font" | "leading"
-  | "striped" | "icon" | "blur" | "angle" | "family" | "margins";
+  | "align"
+  | "color"
+  | "bgcolor"
+  | "size"
+  | "weight"
+  | "style"
+  | "border"
+  | "padding"
+  | "indent"
+  | "opacity"
+  | "radius"
+  | "shadow"
+  | "width"
+  | "height"
+  | "spacing"
+  | "columns"
+  | "font"
+  | "leading"
+  | "striped"
+  | "icon"
+  | "blur"
+  | "angle"
+  | "family"
+  | "margins";
 
 interface StyleRule {
   property: StyleProperty;
-  css: string;         // CSS property name
+  css: string; // CSS property name
   transform?: (v: string) => string; // optional value transform
 }
 
@@ -116,10 +136,7 @@ export const KEYWORD_STYLES: Record<string, StyleRule[]> = {
     direct("size", "fontSize"),
     { property: "style", css: "fontStyle" },
   ],
-  footnote: [
-    direct("color", "color"),
-    direct("size", "fontSize"),
-  ],
+  footnote: [direct("color", "color"), direct("size", "fontSize")],
   byline: [
     direct("align", "textAlign"),
     direct("color", "color"),
@@ -149,7 +166,11 @@ export const KEYWORD_STYLES: Record<string, StyleRule[]> = {
     direct("border", "border"),
     direct("opacity", "opacity"),
     direct("bgcolor", "backgroundColor"),
-    { property: "shadow", css: "boxShadow", transform: () => "0 4px 12px rgba(0,0,0,0.15)" },
+    {
+      property: "shadow",
+      css: "boxShadow",
+      transform: () => "0 4px 12px rgba(0,0,0,0.15)",
+    },
   ],
   figure: [
     direct("width", "width"),
@@ -157,16 +178,14 @@ export const KEYWORD_STYLES: Record<string, StyleRule[]> = {
     direct("border", "border"),
     direct("padding", "padding"),
     direct("bgcolor", "backgroundColor"),
-    { property: "shadow", css: "boxShadow", transform: () => "0 4px 12px rgba(0,0,0,0.15)" },
+    {
+      property: "shadow",
+      css: "boxShadow",
+      transform: () => "0 4px 12px rgba(0,0,0,0.15)",
+    },
   ],
-  link: [
-    direct("color", "color"),
-    direct("weight", "fontWeight"),
-  ],
-  ref: [
-    direct("color", "color"),
-    { property: "style", css: "fontStyle" },
-  ],
+  link: [direct("color", "color"), direct("weight", "fontWeight")],
+  ref: [direct("color", "color"), { property: "style", css: "fontStyle" }],
   embed: [
     direct("width", "width"),
     direct("height", "height"),
@@ -285,10 +304,7 @@ export const KEYWORD_STYLES: Record<string, StyleRule[]> = {
     direct("size", "fontSize"),
     direct("opacity", "opacity"),
   ],
-  signline: [
-    direct("color", "color"),
-    direct("width", "width"),
-  ],
+  signline: [direct("color", "color"), direct("width", "width")],
 };
 
 /**

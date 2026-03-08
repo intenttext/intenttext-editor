@@ -142,16 +142,14 @@ export default function App() {
   return (
     <>
       {hasRestore && (
-        <div className="restore-banner">
-          <span>Unsaved session found. Restore previous work?</span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn-primary" onClick={restore}>
-              Restore
-            </button>
-            <button className="btn-secondary" onClick={dismiss}>
-              Dismiss
-            </button>
-          </div>
+        <div className="restore-toast">
+          <span>Restore unsaved work?</span>
+          <button className="restore-toast-btn restore-yes" onClick={restore}>
+            Restore
+          </button>
+          <button className="restore-toast-btn restore-no" onClick={dismiss}>
+            ✕
+          </button>
         </div>
       )}
 

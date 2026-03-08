@@ -82,9 +82,7 @@ function blockToNode(block: {
 }): JSONContent | null {
   const { type, content, properties } = block;
   const text = content || "";
-  const textContent: JSONContent[] = text
-    ? [{ type: "text", text }]
-    : [];
+  const textContent: JSONContent[] = text ? [{ type: "text", text }] : [];
 
   // Serialize all props to JSON string for TipTap attrs
   const propsJson = properties
@@ -115,7 +113,10 @@ function blockToNode(block: {
 
   // Text → paragraph (paragraphs don't carry props in TipTap)
   if (type === "text") {
-    return { type: "paragraph", content: textContent.length ? textContent : undefined };
+    return {
+      type: "paragraph",
+      content: textContent.length ? textContent : undefined,
+    };
   }
 
   // Callouts
@@ -131,7 +132,10 @@ function blockToNode(block: {
   if (type === "quote") {
     return {
       type: "itQuote",
-      attrs: { by: properties?.by ? String(properties.by) : "", props: propsJson },
+      attrs: {
+        by: properties?.by ? String(properties.by) : "",
+        props: propsJson,
+      },
       content: textContent.length ? textContent : undefined,
     };
   }
@@ -140,7 +144,10 @@ function blockToNode(block: {
   if (type === "code") {
     return {
       type: "itCode",
-      attrs: { lang: properties?.lang ? String(properties.lang) : "", props: propsJson },
+      attrs: {
+        lang: properties?.lang ? String(properties.lang) : "",
+        props: propsJson,
+      },
       content: text ? [{ type: "text", text }] : undefined,
     };
   }
@@ -190,7 +197,10 @@ function nodeToLine(node: JSONContent): string | null {
   const text = extractText(node);
 
   // Helper to reconstruct pipe props from the JSON-encoded props attr
-  const propsStr = (attrs?: Record<string, unknown>, exclude?: string[]): string => {
+  const propsStr = (
+    attrs?: Record<string, unknown>,
+    exclude?: string[],
+  ): string => {
     const raw = attrs?.props;
     if (!raw || raw === "{}") return "";
     try {
