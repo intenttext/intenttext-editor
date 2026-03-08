@@ -241,7 +241,18 @@ export function TrustPanel({
         {/* ── Sealed State ──────────────────── */}
         {trust.isSealed && (
           <div className="trust-sealed-card">
-            <div className="trust-sealed-badge">🔒 DOCUMENT SEALED</div>
+            <div className="trust-sealed-badge">
+              <svg
+                viewBox="0 0 16 16"
+                width="14"
+                height="14"
+                fill="currentColor"
+                style={{ verticalAlign: "middle", marginRight: 4 }}
+              >
+                <path d="M8 1a4 4 0 00-4 4v2H3a1 1 0 00-1 1v6a1 1 0 001 1h10a1 1 0 001-1V8a1 1 0 00-1-1h-1V5a4 4 0 00-4-4zm-2 4a2 2 0 114 0v2H6V5z" />
+              </svg>
+              DOCUMENT SEALED
+            </div>
             {trust.sealedBy && (
               <div className="trust-sealed-detail">
                 Sealed by: {trust.sealedBy}
@@ -436,7 +447,16 @@ export function TrustPanel({
                 className="trust-seal-btn"
                 onClick={() => setSealConfirm(true)}
               >
-                🔒 Seal Document
+                <svg
+                  viewBox="0 0 16 16"
+                  width="12"
+                  height="12"
+                  fill="currentColor"
+                  style={{ verticalAlign: "middle", marginRight: 4 }}
+                >
+                  <path d="M8 1a4 4 0 00-4 4v2H3a1 1 0 00-1 1v6a1 1 0 001 1h10a1 1 0 001-1V8a1 1 0 00-1-1h-1V5a4 4 0 00-4-4zm-2 4a2 2 0 114 0v2H6V5z" />
+                </svg>
+                Seal Document
               </button>
             ) : (
               <div className="trust-seal-confirm">
@@ -504,7 +524,14 @@ export function TrustPanel({
                     className="trust-history-icon"
                     style={{ color: "#d97706" }}
                   >
-                    🔒
+                    <svg
+                      viewBox="0 0 16 16"
+                      width="12"
+                      height="12"
+                      fill="currentColor"
+                    >
+                      <path d="M8 1a4 4 0 00-4 4v2H3a1 1 0 00-1 1v6a1 1 0 001 1h10a1 1 0 001-1V8a1 1 0 00-1-1h-1V5a4 4 0 00-4-4zm-2 4a2 2 0 114 0v2H6V5z" />
+                    </svg>
                   </span>
                   Sealed — {trust.sealedBy}{" "}
                   {trust.sealedAt && `— ${trust.sealedAt}`}

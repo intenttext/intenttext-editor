@@ -37,7 +37,33 @@ export function PrintBar({ content, theme, onThemeChange }: Props) {
       const html = renderHTML(doc, { theme });
       const t = getBuiltinTheme(theme);
       const css = t ? generateThemeCSS(t) : "";
-      const full = `<!doctype html><html><head><style>body{font-family:system-ui;padding:40px;max-width:800px;margin:0 auto}${printMode === "minimal-ink" ? ".callout{background:none!important;border:1px solid #ccc!important}" : ""}${css}</style></head><body>${html}</body></html>`;
+      const preservedHtml = html.replace(/<p><\/p>/g, "<p>&nbsp;</p>");
+      const full = `<!doctype html><html><head><style>
+@page { size: A4; margin: 25.4mm; }
+html, body { margin: 0; padding: 0; width: 210mm; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 11pt;
+  line-height: 1.6;
+  color: #202124;
+  padding: 96px;
+  box-sizing: border-box;
+  max-width: 210mm;
+  margin: 0 auto;
+}
+p:empty::after { content: '\\00a0'; white-space: pre; }
+h1 { font-size: 26pt; font-weight: 700; margin: 0 0 8px; }
+h2 { font-size: 18pt; font-weight: 600; margin: 24px 0 8px; }
+h3 { font-size: 14pt; font-weight: 600; margin: 18px 0 6px; }
+p { margin: 0 0 8px; }
+.it-summary { color: #5f6368; font-size: 12pt; margin: 0 0 16px; }
+.it-callout { padding: 12px 16px; border-radius: 6px; margin: 8px 0; }
+.it-divider { border: none; border-top: 1px solid #dadce0; margin: 16px 0; }
+pre { background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 10pt; overflow-x: auto; }
+blockquote { border-left: 3px solid #dadce0; padding-left: 12px; color: #5f6368; margin: 8px 0; }
+${printMode === "minimal-ink" ? ".it-callout{background:none!important;border:1px solid #ccc!important}" : ""}
+${css}
+</style></head><body>${preservedHtml}</body></html>`;
 
       const iframe = document.createElement("iframe");
       iframe.style.cssText = "position:fixed;left:-9999px;width:0;height:0";
@@ -60,7 +86,40 @@ export function PrintBar({ content, theme, onThemeChange }: Props) {
       const html = renderHTML(doc, { theme });
       const t = getBuiltinTheme(theme);
       const css = t ? generateThemeCSS(t) : "";
-      const full = `<!doctype html>\n<html>\n<head>\n<style>\nbody { font-family: system-ui; padding: 40px; max-width: 800px; margin: 0 auto; }\n${css}\n</style>\n</head>\n<body>\n${html}\n</body>\n</html>`;
+      const preservedHtmlExport = html.replace(/<p><\/p>/g, "<p>&nbsp;</p>");
+      const full = `<!doctype html>
+<html>
+<head>
+<style>
+@page { size: A4; margin: 25.4mm; }
+html, body { margin: 0; padding: 0; width: 210mm; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 11pt;
+  line-height: 1.6;
+  color: #202124;
+  padding: 96px;
+  box-sizing: border-box;
+  max-width: 210mm;
+  margin: 0 auto;
+}
+p:empty::after { content: '\\00a0'; white-space: pre; }
+h1 { font-size: 26pt; font-weight: 700; margin: 0 0 8px; }
+h2 { font-size: 18pt; font-weight: 600; margin: 24px 0 8px; }
+h3 { font-size: 14pt; font-weight: 600; margin: 18px 0 6px; }
+p { margin: 0 0 8px; }
+.it-summary { color: #5f6368; font-size: 12pt; margin: 0 0 16px; }
+.it-callout { padding: 12px 16px; border-radius: 6px; margin: 8px 0; }
+.it-divider { border: none; border-top: 1px solid #dadce0; margin: 16px 0; }
+pre { background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 10pt; overflow-x: auto; }
+blockquote { border-left: 3px solid #dadce0; padding-left: 12px; color: #5f6368; margin: 8px 0; }
+${css}
+</style>
+</head>
+<body>
+${preservedHtmlExport}
+</body>
+</html>`;
       download(full, "document.html", "text/html");
     } catch {
       /* ignore */

@@ -1,4 +1,11 @@
-import { useRef, useEffect, useCallback, useState, useMemo } from "react";
+import {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useState,
+  useMemo,
+} from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -10,6 +17,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import FontFamily from "@tiptap/extension-font-family";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
+import { FontSize } from "./font-size";
 import { sourceToDoc, docToSource } from "./bridge";
 import {
   ITTitle,
@@ -62,6 +70,7 @@ export function VisualEditor({ value, onChange, theme }: Props) {
         types: ["paragraph", "itTitle", "itSummary", "itSection", "itSub"],
       }),
       FontFamily,
+      FontSize,
       Subscript,
       Superscript,
       ITTitle,
@@ -111,7 +120,9 @@ export function VisualEditor({ value, onChange, theme }: Props) {
   }, []);
 
   // Multi-page: track content height and compute page count
-  const PAGE_HEIGHT = 1056;
+  // A4: 210mm × 297mm. At 96 DPI → 794px × 1123px
+  const PAGE_WIDTH = 794;
+  const PAGE_HEIGHT = 1123;
   const pageRef = useRef<HTMLDivElement>(null);
   const [pageCount, setPageCount] = useState(1);
 
@@ -180,24 +191,73 @@ export function VisualEditor({ value, onChange, theme }: Props) {
   // ── Zoom ─────────────────────────────────────────────────
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
+  const prevZoomRef = useRef(zoom);
+  // Store focal point in content-space coordinates for zoom
+  const focalRef = useRef<{ cx: number; cy: number } | null>(null);
+
+  // Capture focal point at mouse position (for wheel zoom)
+  const captureFocalAtMouse = useCallback(
+    (e: { clientX: number; clientY: number }) => {
+      const el = canvasRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      // Mouse position in content-space (scroll + offset within viewport)
+      focalRef.current = {
+        cx: el.scrollLeft + (e.clientX - rect.left),
+        cy: el.scrollTop + (e.clientY - rect.top),
+      };
+    },
+    [],
+  );
+
+  // Capture focal point at viewport center (for keyboard zoom)
+  const captureFocalAtCenter = useCallback(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    focalRef.current = {
+      cx: el.scrollLeft + el.clientWidth / 2,
+      cy: el.scrollTop + el.clientHeight / 2,
+    };
+  }, []);
+
+  // After DOM paints with new zoom, restore scroll so focal point is stable
+  useLayoutEffect(() => {
+    const el = canvasRef.current;
+    const focal = focalRef.current;
+    const prevZoom = prevZoomRef.current;
+    if (!el || !focal || prevZoom === zoom) return;
+    const ratio = zoom / prevZoom;
+    // The focal point in old content-space maps to focal * ratio in new content-space
+    const rect = el.getBoundingClientRect();
+    // Where was the focal point relative to the viewport?
+    const vpX = focal.cx - el.scrollLeft;
+    const vpY = focal.cy - el.scrollTop;
+    el.scrollLeft = focal.cx * ratio - vpX;
+    el.scrollTop = focal.cy * ratio - vpY;
+    focalRef.current = null;
+    prevZoomRef.current = zoom;
+  }, [zoom]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
       if (e.key === "=" || e.key === "+") {
         e.preventDefault();
-        setZoom((z) => Math.min(5, +(z + 0.1).toFixed(2)));
+        captureFocalAtCenter();
+        setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)));
       } else if (e.key === "-") {
         e.preventDefault();
+        captureFocalAtCenter();
         setZoom((z) => Math.max(0.25, +(z - 0.1).toFixed(2)));
       } else if (e.key === "0") {
         e.preventDefault();
+        captureFocalAtCenter();
         setZoom(1);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [captureFocalAtCenter]);
 
   useEffect(() => {
     const el = canvasRef.current;
@@ -206,12 +266,13 @@ export function VisualEditor({ value, onChange, theme }: Props) {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        setZoom((z) => Math.min(5, Math.max(0.25, +(z + delta).toFixed(2))));
+        captureFocalAtMouse(e);
+        setZoom((z) => Math.min(2, Math.max(0.25, +(z + delta).toFixed(2))));
       }
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
-  }, []);
+  }, [captureFocalAtMouse]);
 
   return (
     <div className="docs-container">
@@ -220,8 +281,8 @@ export function VisualEditor({ value, onChange, theme }: Props) {
         <div
           className="docs-page-scaler"
           style={{
-            width: 816 * zoom,
-            minHeight: pageCount * PAGE_HEIGHT * zoom,
+            width: PAGE_WIDTH * zoom,
+            minHeight: (pageCount * PAGE_HEIGHT + (pageCount - 1) * 24) * zoom,
           }}
         >
           <div
@@ -230,17 +291,20 @@ export function VisualEditor({ value, onChange, theme }: Props) {
             style={{
               minHeight: pageCount * PAGE_HEIGHT,
               transform: zoom !== 1 ? `scale(${zoom})` : undefined,
-              transformOrigin: "top center",
+              transformOrigin: "top left",
             }}
           >
             <EditorContent editor={editor} />
-            {Array.from({ length: pageCount - 1 }, (_, i) => (
-              <div
-                key={i}
-                className="docs-page-break-marker"
-                style={{ top: (i + 1) * PAGE_HEIGHT }}
-              />
-            ))}
+            {Array.from({ length: pageCount - 1 }, (_, i) => {
+              const breakY = (i + 1) * PAGE_HEIGHT;
+              return (
+                <div
+                  key={i}
+                  className="docs-page-gap-overlay"
+                  style={{ top: breakY - 12 }}
+                />
+              );
+            })}
           </div>
         </div>
         <div className="docs-page-footer">

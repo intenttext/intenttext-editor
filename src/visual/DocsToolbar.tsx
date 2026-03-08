@@ -18,8 +18,6 @@ import {
   Superscript,
   Minus,
   Plus,
-  Link,
-  Image,
   Palette,
   Highlighter,
   RemoveFormatting,
@@ -38,6 +36,39 @@ import {
   BarChart3,
   CalendarClock,
   BookOpen,
+  Type,
+  Quote,
+  BookMarked,
+  PenLine,
+  Hash,
+  Heading1,
+  Heading2,
+  Heading3,
+  FileText,
+  MessageSquareQuote,
+  Frame,
+  Star,
+  Footprints,
+  Heart,
+  TableProperties,
+  Rows3,
+  Gauge,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  ListTree,
+  Workflow,
+  ShieldCheck,
+  FileLock2,
+  RotateCcw,
+  FileEdit,
+  Clock,
+  Bookmark,
+  PenTool,
+  HelpCircle,
+  CheckSquare,
+  KeyRound,
+  Scale,
+  Columns3,
 } from "lucide-react";
 
 interface Props {
@@ -54,21 +85,96 @@ const STYLE_OPTIONS = [
   { label: "Quote", node: "itQuote" },
 ] as const;
 
-const INSERT_OPTIONS = [
-  { label: "Divider", keyword: "divider", Icon: SeparatorHorizontal },
-  { label: "Page break", keyword: "break", Icon: Scissors },
-  { label: "Code block", keyword: "code", Icon: FileCode2 },
-  { label: "Tip", keyword: "tip", Icon: Lightbulb },
-  { label: "Info", keyword: "info", Icon: Info },
-  { label: "Warning", keyword: "warning", Icon: AlertTriangle },
-  { label: "Danger", keyword: "danger", Icon: ShieldAlert },
-  { label: "Success", keyword: "success", Icon: CircleCheck },
-  { label: "Image", keyword: "image", Icon: ImageIcon },
-  { label: "Link", keyword: "link", Icon: Link2 },
-  { label: "Contact", keyword: "contact", Icon: UserRound },
-  { label: "Metric", keyword: "metric", Icon: BarChart3 },
-  { label: "Deadline", keyword: "deadline", Icon: CalendarClock },
-  { label: "Definition", keyword: "def", Icon: BookOpen },
+type InsertOption = {
+  label: string;
+  keyword: string;
+  Icon: React.ComponentType<{ size: number }>;
+};
+type InsertGroup = { category: string; items: InsertOption[] };
+
+const INSERT_GROUPS: InsertGroup[] = [
+  {
+    category: "Content",
+    items: [
+      { label: "Text", keyword: "text", Icon: Type },
+      { label: "Quote", keyword: "quote", Icon: Quote },
+      { label: "Citation", keyword: "cite", Icon: BookMarked },
+      { label: "Code block", keyword: "code", Icon: FileCode2 },
+      { label: "Image", keyword: "image", Icon: ImageIcon },
+      { label: "Link", keyword: "link", Icon: Link2 },
+      { label: "Definition", keyword: "def", Icon: BookOpen },
+      { label: "Figure", keyword: "figure", Icon: Frame },
+      { label: "Contact", keyword: "contact", Icon: UserRound },
+      { label: "Byline", keyword: "byline", Icon: PenLine },
+      { label: "Epigraph", keyword: "epigraph", Icon: MessageSquareQuote },
+      { label: "Caption", keyword: "caption", Icon: Hash },
+      { label: "Footnote", keyword: "footnote", Icon: Footprints },
+      { label: "Dedication", keyword: "dedication", Icon: Heart },
+    ],
+  },
+  {
+    category: "Callouts",
+    items: [
+      { label: "Tip", keyword: "tip", Icon: Lightbulb },
+      { label: "Info", keyword: "info", Icon: Info },
+      { label: "Warning", keyword: "warning", Icon: AlertTriangle },
+      { label: "Danger", keyword: "danger", Icon: ShieldAlert },
+      { label: "Success", keyword: "success", Icon: CircleCheck },
+    ],
+  },
+  {
+    category: "Structure",
+    items: [
+      { label: "Divider", keyword: "divider", Icon: SeparatorHorizontal },
+      { label: "Page break", keyword: "break", Icon: Scissors },
+      { label: "Reference", keyword: "ref", Icon: Bookmark },
+      { label: "Embed", keyword: "embed", Icon: Columns3 },
+      { label: "Table of Contents", keyword: "toc", Icon: ListTree },
+    ],
+  },
+  {
+    category: "Data",
+    items: [
+      { label: "Input", keyword: "input", Icon: ArrowDownToLine },
+      { label: "Output", keyword: "output", Icon: ArrowUpFromLine },
+      { label: "Columns", keyword: "columns", Icon: TableProperties },
+      { label: "Row", keyword: "row", Icon: Rows3 },
+      { label: "Metric", keyword: "metric", Icon: BarChart3 },
+      { label: "Deadline", keyword: "deadline", Icon: CalendarClock },
+    ],
+  },
+  {
+    category: "Agent & Workflow",
+    items: [
+      { label: "Step", keyword: "step", Icon: Workflow },
+      { label: "Task", keyword: "task", Icon: CheckSquare },
+      { label: "Ask", keyword: "ask", Icon: HelpCircle },
+      { label: "Prompt", keyword: "prompt", Icon: PenTool },
+      { label: "Tool", keyword: "tool", Icon: Gauge },
+      { label: "Assert", keyword: "assert", Icon: Scale },
+      { label: "Secret", keyword: "secret", Icon: KeyRound },
+    ],
+  },
+  {
+    category: "Trust",
+    items: [
+      { label: "Approve", keyword: "approve", Icon: ShieldCheck },
+      { label: "Sign", keyword: "sign", Icon: PenLine },
+      { label: "Freeze / Seal", keyword: "freeze", Icon: FileLock2 },
+      { label: "Revision", keyword: "revision", Icon: RotateCcw },
+      { label: "Amendment", keyword: "amendment", Icon: FileEdit },
+      { label: "Signature line", keyword: "signline", Icon: Star },
+    ],
+  },
+  {
+    category: "Layout",
+    items: [
+      { label: "Page setup", keyword: "page", Icon: FileText },
+      { label: "Header", keyword: "header", Icon: Heading1 },
+      { label: "Footer", keyword: "footer", Icon: Footprints },
+      { label: "Watermark", keyword: "watermark", Icon: Clock },
+    ],
+  },
 ];
 
 const FONT_FAMILIES = [
@@ -243,7 +349,25 @@ export function DocsToolbar({ editor }: Props) {
     return match ? match.label : "Default";
   }, [editor]);
 
-  const [fontSize, setFontSize] = useState(15);
+  const [fontSize, setFontSize] = useState(11);
+
+  // Sync font size from editor selection
+  useEffect(() => {
+    if (!editor) return;
+    const updateFontSize = () => {
+      const attrs = editor.getAttributes("textStyle");
+      if (attrs?.fontSize) {
+        const n = parseInt(attrs.fontSize, 10);
+        if (!isNaN(n)) setFontSize(n);
+      }
+    };
+    editor.on("selectionUpdate", updateFontSize);
+    editor.on("transaction", updateFontSize);
+    return () => {
+      editor.off("selectionUpdate", updateFontSize);
+      editor.off("transaction", updateFontSize);
+    };
+  }, [editor]);
 
   /* ── Actions ─────────────────────────────────────────────── */
   const setStyle = useCallback(
@@ -287,9 +411,7 @@ export function DocsToolbar({ editor }: Props) {
     (delta: number) => {
       const next = Math.min(96, Math.max(8, fontSize + delta));
       setFontSize(next);
-      // We set font-size through the DOM style since TipTap TextStyle doesn't natively track font-size
-      // Instead, apply through CSS custom property on the block
-      editor?.chain().focus().run();
+      editor?.chain().focus().setFontSize(`${next}pt`).run();
     },
     [editor, fontSize],
   );
@@ -631,17 +753,24 @@ export function DocsToolbar({ editor }: Props) {
         </button>
         {insertOpen && (
           <div className="docs-tb-dropdown-menu docs-insert-menu">
-            {INSERT_OPTIONS.map((opt) => (
-              <button
-                key={opt.keyword}
-                className="docs-tb-dropdown-item"
-                onClick={() => insertBlock(opt.keyword)}
-              >
-                <span className="docs-insert-icon">
-                  <opt.Icon size={16} />
-                </span>
-                <span>{opt.label}</span>
-              </button>
+            {INSERT_GROUPS.map((group, gi) => (
+              <div key={group.category}>
+                {gi > 0 && <div className="docs-insert-divider" />}
+                <div className="docs-insert-category">{group.category}</div>
+                {group.items.map((opt) => (
+                  <button
+                    key={opt.keyword}
+                    className="docs-tb-dropdown-item docs-insert-item"
+                    onClick={() => insertBlock(opt.keyword)}
+                  >
+                    <span className="docs-insert-icon">
+                      <opt.Icon size={15} />
+                    </span>
+                    <span className="docs-insert-label">{opt.label}</span>
+                    <span className="docs-insert-kw">.{opt.keyword}</span>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         )}

@@ -134,7 +134,14 @@ export function Toolbar({
       <div style={{ flex: 1 }} />
 
       {/* Right — panel toggles + theme */}
-      {isSealed && <span className="sealed-badge">🔒 SEALED</span>}
+      {isSealed && (
+        <span className="sealed-badge">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+            <path d="M8 1a4 4 0 00-4 4v2H3a1 1 0 00-1 1v6a1 1 0 001 1h10a1 1 0 001-1V8a1 1 0 00-1-1h-1V5a4 4 0 00-4-4zm-2 4a2 2 0 114 0v2H6V5z" />
+          </svg>{" "}
+          SEALED
+        </span>
+      )}
 
       <button
         className={`tbtn panel-toggle-btn ${showDocPanel ? "active" : ""}`}
@@ -177,8 +184,15 @@ export function Toolbar({
         )}
       </div>
 
-      <button className="tbtn" onClick={() => onModal("help")} title="Help (?)">
-        ?
+      <button
+        className="tbtn"
+        onClick={() => onModal("help")}
+        title="Keyboard shortcuts"
+      >
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+          <path d="M1 4a2 2 0 012-2h10a2 2 0 012 2v6a2 2 0 01-2 2H3a2 2 0 01-2-2V4zm2-1a1 1 0 00-1 1v6a1 1 0 001 1h10a1 1 0 001-1V4a1 1 0 00-1-1H3z" />
+          <path d="M4 5h1v1H4V5zm2 0h1v1H6V5zm2 0h1v1H8V5zm2 0h1v1h-1V5zm-6 2h1v1H4V7zm2 0h1v1H6V7zm2 0h1v1H8V7zm2 0h1v1h-1V7zm-4 2h4v1H6V9z" />
+        </svg>
       </button>
     </div>
   );
