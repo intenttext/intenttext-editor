@@ -1,8 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { ThemePicker } from "./ThemePicker";
-import { ExportMenu } from "./ExportMenu";
-import { TrustMenu } from "./TrustMenu";
-import { ToolsMenu } from "./ToolsMenu";
 import type { ModalType } from "../App";
 import type { EditorMode } from "../visual/types";
 
@@ -17,8 +14,11 @@ interface Props {
   onOpen: () => void;
   onSave: () => void;
   onModal: (m: ModalType) => void;
-  content: string;
-  onContentChange: (c: string) => void;
+  showDocPanel: boolean;
+  onToggleDocPanel: () => void;
+  showTrustPanel: boolean;
+  onToggleTrustPanel: () => void;
+  isSealed?: boolean;
 }
 
 export function Toolbar({
@@ -32,13 +32,15 @@ export function Toolbar({
   onOpen,
   onSave,
   onModal,
-  content,
-  onContentChange,
+  showDocPanel,
+  onToggleDocPanel,
+  showTrustPanel,
+  onToggleTrustPanel,
+  isSealed,
 }: Props) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
-  // Close menus on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (
@@ -97,27 +99,69 @@ export function Toolbar({
 
       <div style={{ flex: 1 }} />
 
-      {/* Center — mode toggle */}
-      <div className="it-mode-toggle">
+      {/* Center — mode switch */}
+      <div className="mode-switch">
+        <div
+          className="mode-switch-indicator"
+          style={{
+            transform:
+              editorMode === "source" ? "translateX(100%)" : "translateX(0)",
+          }}
+        />
         <button
-          className={`tbtn ${editorMode === "visual" ? "active" : ""}`}
+          className={`mode-switch-btn ${editorMode === "visual" ? "active" : ""}`}
           onClick={() => onEditorModeChange("visual")}
           title="Visual mode"
         >
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+            <path d="M8 3C4.5 3 1.7 5.1.5 8c1.2 2.9 4 5 7.5 5s6.3-2.1 7.5-5c-1.2-2.9-4-5-7.5-5zm0 8.3a3.3 3.3 0 110-6.6 3.3 3.3 0 010 6.6z" />
+            <circle cx="8" cy="8" r="2" />
+          </svg>
           Visual
         </button>
         <button
-          className={`tbtn ${editorMode === "source" ? "active" : ""}`}
+          className={`mode-switch-btn ${editorMode === "source" ? "active" : ""}`}
           onClick={() => onEditorModeChange("source")}
           title="Source mode"
         >
-          &lt;/&gt; Source
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+            <path d="M5.854 4.146a.5.5 0 010 .708L3.207 7.5l2.647 2.646a.5.5 0 01-.708.708l-3-3a.5.5 0 010-.708l3-3a.5.5 0 01.708 0zm4.292 0a.5.5 0 00-.146.354.5.5 0 00.146.354L12.793 7.5l-2.647 2.646a.5.5 0 00.708.708l3-3a.5.5 0 000-.708l-3-3a.5.5 0 00-.354-.146z" />
+          </svg>
+          Source
         </button>
       </div>
 
       <div style={{ flex: 1 }} />
 
-      {/* Right — tools */}
+      {/* Right — panel toggles + theme */}
+      {isSealed && <span className="sealed-badge">🔒 SEALED</span>}
+
+      <button
+        className={`tbtn panel-toggle-btn ${showDocPanel ? "active" : ""}`}
+        onClick={onToggleDocPanel}
+        title="Toggle Document panel"
+      >
+        <svg viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2 2h5v12H2V2zm7 0h5v12H9V2z" opacity="0.7" />
+        </svg>
+        Document
+      </button>
+      <button
+        className={`tbtn panel-toggle-btn ${showTrustPanel ? "active" : ""}`}
+        onClick={onToggleTrustPanel}
+        title="Toggle Trust panel"
+      >
+        <svg viewBox="0 0 16 16" fill="currentColor">
+          <path
+            d="M8 1l6 3v4c0 3.5-2.6 6.8-6 7.9C4.6 14.8 2 11.5 2 8V4l6-3z"
+            opacity="0.7"
+          />
+        </svg>
+        Trust
+      </button>
+
+      <div className="toolbar-sep" />
+
       <div className="dropdown">
         <button className="tbtn" onClick={() => toggle("theme")}>
           Theme ▾
@@ -129,47 +173,6 @@ export function Toolbar({
               onThemeChange(t);
               setOpenMenu(null);
             }}
-          />
-        )}
-      </div>
-
-      <div className="dropdown">
-        <button className="tbtn" onClick={() => toggle("export")}>
-          Export ▾
-        </button>
-        {openMenu === "export" && (
-          <ExportMenu
-            content={content}
-            theme={theme}
-            onClose={() => setOpenMenu(null)}
-          />
-        )}
-      </div>
-
-      <div className="dropdown">
-        <button className="tbtn" onClick={() => toggle("trust")}>
-          Trust ▾
-        </button>
-        {openMenu === "trust" && (
-          <TrustMenu
-            onAction={(action) => {
-              setOpenMenu(null);
-              onModal(action as ModalType);
-            }}
-          />
-        )}
-      </div>
-
-      <div className="dropdown">
-        <button className="tbtn" onClick={() => toggle("tools")}>
-          Tools ▾
-        </button>
-        {openMenu === "tools" && (
-          <ToolsMenu
-            content={content}
-            onContentChange={onContentChange}
-            onClose={() => setOpenMenu(null)}
-            onModal={onModal}
           />
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -25,13 +25,15 @@ import {
   ITComment,
 } from "./extensions";
 import { DocsToolbar } from "./DocsToolbar";
+import { getBuiltinTheme, generateThemeCSS } from "@intenttext/core";
 
 interface Props {
   value: string;
   onChange: (source: string) => void;
+  theme?: string;
 }
 
-export function VisualEditor({ value, onChange }: Props) {
+export function VisualEditor({ value, onChange, theme }: Props) {
   const lastSourceRef = useRef<string>("");
   const isInternalUpdate = useRef(false);
 
@@ -152,27 +154,105 @@ export function VisualEditor({ value, onChange }: Props) {
     );
   }, [editor]);
 
+  // ── Theme CSS injection ──────────────────────────────────
+  const themeCSS = useMemo(() => {
+    if (!theme) return "";
+    try {
+      const t = getBuiltinTheme(theme);
+      if (!t) return "";
+      return generateThemeCSS(t).replace(/:root\{/, ".docs-page{");
+    } catch {
+      return "";
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    const id = "it-editor-theme-css";
+    let el = document.getElementById(id) as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement("style");
+      el.id = id;
+      document.head.appendChild(el);
+    }
+    el.textContent = themeCSS;
+  }, [themeCSS]);
+
+  // ── Zoom ─────────────────────────────────────────────────
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key === "=" || e.key === "+") {
+        e.preventDefault();
+        setZoom((z) => Math.min(5, +(z + 0.1).toFixed(2)));
+      } else if (e.key === "-") {
+        e.preventDefault();
+        setZoom((z) => Math.max(0.25, +(z - 0.1).toFixed(2)));
+      } else if (e.key === "0") {
+        e.preventDefault();
+        setZoom(1);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        setZoom((z) =>
+          Math.min(5, Math.max(0.25, +(z + delta).toFixed(2))),
+        );
+      }
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
+
   return (
     <div className="docs-container">
       <DocsToolbar editor={editor} />
-      <div className="docs-canvas">
+      <div className="docs-canvas" ref={canvasRef}>
         <div
-          className="docs-page"
-          ref={pageRef}
-          style={{ minHeight: pageCount * PAGE_HEIGHT }}
+          className="docs-page-scaler"
+          style={{
+            width: 816 * zoom,
+            minHeight: pageCount * PAGE_HEIGHT * zoom,
+          }}
         >
-          <EditorContent editor={editor} />
-          {Array.from({ length: pageCount - 1 }, (_, i) => (
-            <div
-              key={i}
-              className="docs-page-break-marker"
-              style={{ top: (i + 1) * PAGE_HEIGHT }}
-            />
-          ))}
+          <div
+            className="docs-page"
+            ref={pageRef}
+            style={{
+              minHeight: pageCount * PAGE_HEIGHT,
+              transform: zoom !== 1 ? `scale(${zoom})` : undefined,
+              transformOrigin: "top center",
+            }}
+          >
+            <EditorContent editor={editor} />
+            {Array.from({ length: pageCount - 1 }, (_, i) => (
+              <div
+                key={i}
+                className="docs-page-break-marker"
+                style={{ top: (i + 1) * PAGE_HEIGHT }}
+              />
+            ))}
+          </div>
         </div>
         <div className="docs-page-footer">
           {pageCount} {pageCount === 1 ? "page" : "pages"} &middot;{" "}
           {getWordCount()} words
+          {zoom !== 1 && (
+            <span className="zoom-indicator">
+              {" "}&middot; {Math.round(zoom * 100)}%
+            </span>
+          )}
         </div>
       </div>
     </div>

@@ -3,6 +3,9 @@ import { Toolbar } from "./toolbar/Toolbar";
 import { StatusBar } from "./status/StatusBar";
 import { MonacoEditor } from "./editor/MonacoEditor";
 import { VisualEditor } from "./visual/VisualEditor";
+import { DocumentPanel } from "./panels/DocumentPanel";
+import { TrustPanel } from "./panels/TrustPanel";
+import { PrintBar } from "./panels/PrintBar";
 import { SealModal } from "./modals/SealModal";
 import { VerifyModal } from "./modals/VerifyModal";
 import { HistoryModal } from "./modals/HistoryModal";
@@ -13,6 +16,8 @@ import { useWorkspace } from "./hooks/useWorkspace";
 import { useFile } from "./hooks/useFile";
 import { useAutoSave } from "./hooks/useAutoSave";
 import { useDocument } from "./hooks/useDocument";
+import { useDocumentMeta } from "./hooks/useDocumentMeta";
+import { useTrustState } from "./hooks/useTrustState";
 import type { EditorMode } from "./visual/types";
 import type * as monaco from "monaco-editor";
 
@@ -47,6 +52,8 @@ export default function App() {
   const docState = useDocument(content);
   const { openFile, saveFile, newFile } = useFile(workspace);
   const { hasRestore, restore, dismiss } = useAutoSave(content, setContent);
+  const docMeta = useDocumentMeta(content, setContent);
+  const trustState = useTrustState(content, setContent);
 
   const [theme, setTheme] = useState(
     () => localStorage.getItem("it-editor-theme") || "corporate",
@@ -56,6 +63,21 @@ export default function App() {
     () => (localStorage.getItem("it-editor-mode") as EditorMode) || "visual",
   );
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+
+  // Panel visibility
+  const [showDocPanel, setShowDocPanel] = useState(
+    () => localStorage.getItem("it-editor-doc-panel") !== "false",
+  );
+  const [showTrustPanel, setShowTrustPanel] = useState(
+    () => localStorage.getItem("it-editor-trust-panel") === "true",
+  );
+
+  useEffect(() => {
+    localStorage.setItem("it-editor-doc-panel", String(showDocPanel));
+  }, [showDocPanel]);
+  useEffect(() => {
+    localStorage.setItem("it-editor-trust-panel", String(showTrustPanel));
+  }, [showTrustPanel]);
 
   // Always light mode
   useEffect(() => {
@@ -164,11 +186,29 @@ export default function App() {
         onOpen={openFile}
         onSave={saveFile}
         onModal={setModal}
-        content={content}
-        onContentChange={setContent}
+        showDocPanel={showDocPanel}
+        onToggleDocPanel={() => setShowDocPanel((p) => !p)}
+        showTrustPanel={showTrustPanel}
+        onToggleTrustPanel={() => setShowTrustPanel((p) => !p)}
+        isSealed={trustState.trust.isSealed}
       />
 
       <div className="panels" style={{ flex: 1 }}>
+        {showDocPanel && (
+          <DocumentPanel
+            meta={docMeta.meta}
+            onTitleChange={docMeta.setTitle}
+            onSummaryChange={docMeta.setSummary}
+            onBylineChange={docMeta.setByline}
+            onFontChange={docMeta.setFont}
+            onPageChange={docMeta.setPage}
+            onHeaderChange={docMeta.setHeader}
+            onFooterChange={docMeta.setFooter}
+            onWatermarkChange={docMeta.setWatermark}
+            onTocChange={docMeta.setToc}
+          />
+        )}
+
         <div className="panel-editor" style={{ flex: 1 }}>
           {editorMode === "source" ? (
             <MonacoEditor
@@ -177,10 +217,24 @@ export default function App() {
               editorRef={editorRef}
             />
           ) : (
-            <VisualEditor value={content} onChange={setContent} />
+            <VisualEditor value={content} onChange={setContent} theme={theme} />
           )}
         </div>
+
+        {showTrustPanel && (
+          <TrustPanel
+            trust={trustState.trust}
+            onTrack={trustState.startTracking}
+            onApprove={trustState.addApproval}
+            onSign={trustState.addSignature}
+            onSeal={trustState.seal}
+            onVerify={trustState.verify}
+            onAmend={trustState.addAmendment}
+          />
+        )}
       </div>
+
+      <PrintBar content={content} theme={theme} onThemeChange={setTheme} />
 
       <StatusBar
         blocks={docState.blocks}
