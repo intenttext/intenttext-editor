@@ -380,7 +380,9 @@ button {
   height: calc(100% - 6px);
   background: #fff;
   border-radius: 7px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.06);
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
@@ -452,7 +454,7 @@ button {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #1F1E2B;
+  background: #1f1e2b;
 }
 
 /* ─── Docs Toolbar (formatting bar) ───────────────────────── */
@@ -807,7 +809,7 @@ button {
   height: 40px;
   z-index: 5;
   pointer-events: none;
-  background: #1F1E2B;
+  background: #1f1e2b;
   transform: translateY(-20px);
   box-shadow:
     inset 0 3px 6px rgba(0, 0, 0, 0.4),

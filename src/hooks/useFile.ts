@@ -125,7 +125,7 @@ export function useFile(workspace: WorkspaceState) {
       setFileHandle(null);
       markSaved();
     },
-    [isUnsaved, setContent, setFilename, setFileHandle, markSaved]
+    [isUnsaved, setContent, setFilename, setFileHandle, markSaved],
   );
 
   return { openFile, saveFile, newFile };

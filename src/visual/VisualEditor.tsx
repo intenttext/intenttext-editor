@@ -206,9 +206,7 @@ export function VisualEditor({ value, onChange, theme }: Props) {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        setZoom((z) =>
-          Math.min(5, Math.max(0.25, +(z + delta).toFixed(2))),
-        );
+        setZoom((z) => Math.min(5, Math.max(0.25, +(z + delta).toFixed(2))));
       }
     };
     el.addEventListener("wheel", handler, { passive: false });
@@ -250,7 +248,8 @@ export function VisualEditor({ value, onChange, theme }: Props) {
           {getWordCount()} words
           {zoom !== 1 && (
             <span className="zoom-indicator">
-              {" "}&middot; {Math.round(zoom * 100)}%
+              {" "}
+              &middot; {Math.round(zoom * 100)}%
             </span>
           )}
         </div>
