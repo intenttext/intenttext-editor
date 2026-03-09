@@ -236,7 +236,7 @@ export function DocumentPanel({
                     setDate(e.target.value);
                     onBylineChange(author, publication, e.target.value);
                   }}
-                  placeholder="YYYY-MM-DD"
+                  placeholder="DD/MM/YYYY"
                 />
               </div>
             </div>

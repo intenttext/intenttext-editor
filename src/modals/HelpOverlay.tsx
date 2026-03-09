@@ -6,17 +6,15 @@ const shortcuts: [string, string][] = [
   ["⌘ S", "Save file"],
   ["⌘ O", "Open file"],
   ["⌘ N", "New document"],
-  ["⌘ \\", "Toggle preview"],
-  ["⌘ ⇧ \\", "Preview-only mode"],
-  ["⌘ ⇧ E", "Export PDF"],
   ["⌘ ⇧ V", "Verify document"],
+  ["⌘ +", "Zoom in (visual editor)"],
+  ["⌘ -", "Zoom out (visual editor)"],
+  ["⌘ 0", "Reset zoom (visual editor)"],
+  ["⌘ Mouse Wheel", "Smooth zoom around cursor"],
   ["Esc", "Close modal / menu"],
+  ["Tip", "Insert menu is aligned to core frozen canonical keywords"],
   ["⌘ Z", "Undo"],
   ["⌘ ⇧ Z", "Redo"],
-  ["⌘ D", "Select next occurrence"],
-  ["⌘ /", "Toggle comment"],
-  ["⌘ ⇧ K", "Delete line"],
-  ["Alt ↑/↓", "Move line up/down"],
 ];
 
 export function HelpOverlay({ onClose }: Props) {
@@ -37,10 +35,7 @@ export function HelpOverlay({ onClose }: Props) {
         >
           <tbody>
             {shortcuts.map(([key, desc]) => (
-              <tr
-                key={key}
-                style={{ borderBottom: "1px solid var(--border)" }}
-              >
+              <tr key={key} style={{ borderBottom: "1px solid var(--border)" }}>
                 <td
                   style={{
                     padding: "8px 12px 8px 0",
@@ -67,8 +62,8 @@ export function HelpOverlay({ onClose }: Props) {
             textAlign: "center",
           }}
         >
-          Monaco editor shortcuts also work (Ctrl+Space for autocomplete, F1
-          for command palette, etc.)
+          Monaco editor shortcuts also work (Ctrl+Space for autocomplete, F1 for
+          command palette, etc.)
         </p>
         <div className="modal-actions">
           <button className="btn-primary" onClick={onClose}>

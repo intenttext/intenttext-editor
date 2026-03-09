@@ -20,20 +20,32 @@ import { useDocumentMeta } from "./hooks/useDocumentMeta";
 import { useTrustState } from "./hooks/useTrustState";
 import type { EditorMode } from "./visual/types";
 import type * as monaco from "monaco-editor";
+import { SearchShowcasePanel } from "./showcase/SearchShowcasePanel";
+import { TrustShowcasePanel } from "./showcase/TrustShowcasePanel";
+import { WorkflowShowcasePanel } from "./showcase/WorkflowShowcasePanel";
+import { FirstRunGuide } from "./showcase/FirstRunGuide";
+import {
+  DEMO_DOCS,
+  DEFAULT_DEMO_DOC_ID,
+  getDemoDocById,
+  type DemoDoc,
+} from "./showcase/demoVault";
 
 const WELCOME = `title: My First Document
 summary: A document written in IntentText
 
 section: Getting Started
-text: Every line in IntentText starts with a keyword.
+text: IntentText uses a frozen canonical keyword contract in core.
 text: The preview on the right updates as you type.
-tip: Try changing the theme using the Theme picker above.
+info: Try changing the theme using the Theme picker above. | type: tip
 
 section: Learn More
 link: Documentation | to: https://itdocs.vercel.app
 link: Browse Templates | to: https://intenttext-hub.vercel.app
 link: GitHub | to: https://github.com/intenttext/IntentText
 `;
+
+type ShowcaseMode = "search" | "trust" | "workflow";
 
 export type ModalType =
   | "seal"
@@ -59,6 +71,8 @@ export default function App() {
     () => localStorage.getItem("it-editor-theme") || "corporate",
   );
   const [modal, setModal] = useState<ModalType>(null);
+  const [showcaseMode, setShowcaseMode] = useState<ShowcaseMode>("search");
+  const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>(
     () => (localStorage.getItem("it-editor-mode") as EditorMode) || "visual",
   );
@@ -102,9 +116,30 @@ export default function App() {
       return;
     }
     if (!content && !hasRestore) {
-      setContent(WELCOME);
+      const defaultDoc = getDemoDocById(DEFAULT_DEMO_DOC_ID);
+      setContent(defaultDoc?.source || WELCOME);
+      setFilename(defaultDoc ? `${defaultDoc.id}.it` : "untitled.it");
+      markSaved();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const seen = localStorage.getItem("it-editor-showcase-onboarded") === "1";
+    if (!seen) {
+      setShowFirstRunGuide(true);
+    }
+  }, []);
+
+  const loadDemoDoc = useCallback(
+    (doc: DemoDoc) => {
+      setContent(doc.source);
+      setFilename(`${doc.id}.it`);
+      markSaved();
+      setShowFirstRunGuide(false);
+      localStorage.setItem("it-editor-showcase-onboarded", "1");
+    },
+    [setContent, setFilename, markSaved],
+  );
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -175,85 +210,130 @@ export default function App() {
         </div>
       )}
 
-      <Toolbar
-        filename={filename}
-        onFilenameChange={setFilename}
-        editorMode={editorMode}
-        onEditorModeChange={setEditorMode}
-        theme={theme}
-        onThemeChange={setTheme}
-        onNew={() => newFile(WELCOME)}
-        onOpen={openFile}
-        onSave={saveFile}
-        onModal={setModal}
-        showDocPanel={showDocPanel}
-        onToggleDocPanel={() => setShowDocPanel((p) => !p)}
-        showTrustPanel={showTrustPanel}
-        onToggleTrustPanel={() => setShowTrustPanel((p) => !p)}
-        isSealed={trustState.trust.isSealed}
-      />
+      <div className="app-shell">
+        <div
+          className="showcase-tabs"
+          role="tablist"
+          aria-label="Showcase modes"
+        >
+          <button
+            className={`showcase-tab ${showcaseMode === "search" ? "active" : ""}`}
+            onClick={() => setShowcaseMode("search")}
+          >
+            Search
+          </button>
+          <button
+            className={`showcase-tab ${showcaseMode === "trust" ? "active" : ""}`}
+            onClick={() => setShowcaseMode("trust")}
+          >
+            Trust
+          </button>
+          <button
+            className={`showcase-tab ${showcaseMode === "workflow" ? "active" : ""}`}
+            onClick={() => setShowcaseMode("workflow")}
+          >
+            Workflow
+          </button>
+        </div>
 
-      <div className="panels" style={{ flex: 1 }}>
-        {showDocPanel && (
-          <DocumentPanel
-            meta={docMeta.meta}
-            onTitleChange={docMeta.setTitle}
-            onSummaryChange={docMeta.setSummary}
-            onBylineChange={docMeta.setByline}
-            onFontChange={docMeta.setFont}
-            onPageChange={docMeta.setPage}
-            onHeaderChange={docMeta.setHeader}
-            onFooterChange={docMeta.setFooter}
-            onWatermarkChange={docMeta.setWatermark}
-            onTocChange={docMeta.setToc}
-          />
-        )}
+        <Toolbar
+          filename={filename}
+          onFilenameChange={setFilename}
+          editorMode={editorMode}
+          onEditorModeChange={setEditorMode}
+          theme={theme}
+          onThemeChange={setTheme}
+          onNew={() => newFile(WELCOME)}
+          onOpen={openFile}
+          onSave={saveFile}
+          onModal={setModal}
+          showDocPanel={showDocPanel}
+          onToggleDocPanel={() => setShowDocPanel((p) => !p)}
+          showTrustPanel={showTrustPanel}
+          onToggleTrustPanel={() => setShowTrustPanel((p) => !p)}
+          isSealed={trustState.trust.isSealed}
+        />
 
-        <div className="panel-editor" style={{ flex: 1 }}>
-          {editorMode === "source" ? (
-            <MonacoEditor
-              value={content}
-              onChange={setContent}
-              editorRef={editorRef}
+        <div className="panels" style={{ flex: 1 }}>
+          {showDocPanel && (
+            <DocumentPanel
+              meta={docMeta.meta}
+              onTitleChange={docMeta.setTitle}
+              onSummaryChange={docMeta.setSummary}
+              onBylineChange={docMeta.setByline}
+              onFontChange={docMeta.setFont}
+              onPageChange={docMeta.setPage}
+              onHeaderChange={docMeta.setHeader}
+              onFooterChange={docMeta.setFooter}
+              onWatermarkChange={docMeta.setWatermark}
+              onTocChange={docMeta.setToc}
             />
-          ) : (
-            <VisualEditor value={content} onChange={setContent} theme={theme} />
+          )}
+
+          <div className="panel-editor" style={{ flex: 1 }}>
+            {editorMode === "source" ? (
+              <MonacoEditor
+                value={content}
+                onChange={setContent}
+                editorRef={editorRef}
+              />
+            ) : (
+              <VisualEditor
+                value={content}
+                onChange={setContent}
+                theme={theme}
+              />
+            )}
+          </div>
+
+          {showTrustPanel && (
+            <TrustPanel
+              trust={trustState.trust}
+              onTrack={trustState.startTracking}
+              onApprove={trustState.addApproval}
+              onSign={trustState.addSignature}
+              onSeal={trustState.seal}
+              onVerify={trustState.verify}
+              onAmend={trustState.addAmendment}
+            />
+          )}
+
+          {showcaseMode === "search" && (
+            <SearchShowcasePanel
+              content={content}
+              activeTitle={docMeta.meta.title}
+              onLoadDemo={loadDemoDoc}
+            />
+          )}
+          {showcaseMode === "trust" && (
+            <TrustShowcasePanel trust={trustState.trust} />
+          )}
+          {showcaseMode === "workflow" && (
+            <WorkflowShowcasePanel content={content} />
           )}
         </div>
 
-        {showTrustPanel && (
-          <TrustPanel
-            trust={trustState.trust}
-            onTrack={trustState.startTracking}
-            onApprove={trustState.addApproval}
-            onSign={trustState.addSignature}
-            onSeal={trustState.seal}
-            onVerify={trustState.verify}
-            onAmend={trustState.addAmendment}
-          />
-        )}
+        <PrintBar content={content} theme={theme} onThemeChange={setTheme} />
+
+        <StatusBar
+          blocks={docState.blocks}
+          lines={docState.lines}
+          keywords={docState.keywords}
+          words={docState.words}
+          errors={docState.errorCount}
+          theme={theme}
+          isUnsaved={isUnsaved}
+          onErrorClick={() => {
+            if (docState.firstErrorLine && editorRef.current) {
+              editorRef.current.revealLineInCenter(docState.firstErrorLine);
+              editorRef.current.setPosition({
+                lineNumber: docState.firstErrorLine,
+                column: 1,
+              });
+            }
+          }}
+        />
       </div>
-
-      <PrintBar content={content} theme={theme} onThemeChange={setTheme} />
-
-      <StatusBar
-        blocks={docState.blocks}
-        lines={docState.lines}
-        keywords={docState.keywords}
-        words={docState.words}
-        errors={docState.errorCount}
-        theme={theme}
-        isUnsaved={isUnsaved}
-        onErrorClick={() => {
-          if (docState.firstErrorLine && editorRef.current) {
-            editorRef.current.revealLineInCenter(docState.firstErrorLine);
-            editorRef.current.setPosition({
-              lineNumber: docState.firstErrorLine,
-              column: 1,
-            });
-          }
-        }}
-      />
 
       {/* Modals */}
       {modal === "seal" && (
@@ -286,6 +366,17 @@ export default function App() {
         />
       )}
       {modal === "help" && <HelpOverlay onClose={() => setModal(null)} />}
+
+      {showFirstRunGuide && (
+        <FirstRunGuide
+          docs={DEMO_DOCS}
+          onPick={loadDemoDoc}
+          onClose={() => {
+            setShowFirstRunGuide(false);
+            localStorage.setItem("it-editor-showcase-onboarded", "1");
+          }}
+        />
+      )}
     </>
   );
 }

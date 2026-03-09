@@ -301,9 +301,13 @@ function blockToNode(block: {
 
   // Callouts
   if (CALLOUT_TYPES.has(type)) {
+    const variant =
+      type === "info" ? String(properties?.type || "info").toLowerCase() : type;
+    const safeVariant = CALLOUT_TYPES.has(variant) ? variant : "info";
+
     return {
       type: "itCallout",
-      attrs: { variant: type, props: propsJson },
+      attrs: { variant: safeVariant, props: propsJson },
       content: textContent.length ? textContent : undefined,
     };
   }
@@ -439,7 +443,10 @@ function nodeToLine(node: JSONContent): string | null {
         markProps,
         new Set(["variant"]),
       );
-      return `${variant}: ${text}${formatProps(merged)}`;
+      if (variant === "info") {
+        return `info: ${text}${formatProps(merged)}`;
+      }
+      return `info: ${text} | type: ${variant}${formatProps(merged, new Set(["type"]))}`;
     }
 
     case "itQuote": {

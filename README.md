@@ -1,108 +1,40 @@
-# Web to IntentText
+# IntentText Editor
 
-> Two simple tools: Convert web content to IntentText (.it) or convert IntentText back to HTML/Markdown.
+IntentText Editor is the browser editor experience for `.it` documents, built on `@intenttext/core`.
 
-**Live:** [https://iteditor.vercel.app/](https://iteditor.vercel.app/) &nbsp;|&nbsp; **Repo:** [github.com/intenttext/intenttext-editor](https://github.com/intenttext/intenttext-editor)
+The app includes:
 
----
+- Source mode (Monaco) for precise text editing
+- Visual mode (TipTap) for document-style authoring
+- Live document parsing, stats, trust actions, and print/export helpers
 
-## What it does
+## Core Alignment
 
-This project includes two separate pages for bidirectional conversion:
+This editor is aligned with the core `3.1.x` direction:
 
-**Web-to-IT** (`index.html`): Copy content from a web page, Google Doc, Notion, email or any rich-text source and paste it into the left panel. The right panel updates in real time with clean IntentText.
+- Rust-first core runtime
+- Frozen canonical keyword contract (insert UX driven by core registry)
+- Canonical-first behavior in status/help and visual insertion flows
 
-**IT-to-Web** (`it-to-web.html`): Type or paste IntentText (.it) content in the left panel, and get instant HTML and Markdown output in the right panel.
-
-Switch between pages using the navigation buttons in the header. Each page is focused and does one conversion direction perfectly.
-
-Everything runs in your browser — nothing is uploaded or stored.
-
-## Features
-
-- **Two dedicated pages** - One for each conversion direction, no complex switching
-- **Clean interface** - Each page has a single purpose and intuitive layout
-- **Paste anything** - Tables, headings, bold/italic, lists, code blocks, blockquotes, links and images all convert correctly
-- **Dual input modes** - Switch between HTML and Markdown input (web-to-it) or HTML and Markdown output (it-to-web)
-- **Instant paste performance** - Content appears immediately, then processes in the background
-- **Monaco editor** - Syntax-highlighted IntentText editing (the same engine that powers VS Code)
-- **Live preview** - Toggle to a rendered HTML preview at any time
-- **Stats bar** - Live block, line and character count
-- **Copy / Download** - One-click copy to clipboard or save as `.it`, `.html`, or `.md` files
-- **No server, no tracking** - 100% client-side
-
-## Getting started
+## Run Locally
 
 ```bash
 npm install
-npm run dev       # dev server at http://localhost:5173
-npm run build     # production build → dist/
-npm run preview   # preview the production build locally
+npm run dev
+npm run build
+npm run preview
 ```
 
-## Pages
+## Tech Stack
 
-### Web-to-IT (`index.html`)
+- React + TypeScript + Vite
+- Monaco Editor
+- TipTap visual editing surface
+- `@intenttext/core`
 
-- **Input:** HTML or Markdown (left panel)
-- **Output:** IntentText .it (right panel)
-- **Use Case:** Convert web content to structured IntentText
+## Desktop Direction
 
-### IT-to-Web (`it-to-web.html`)
-
-- **Input:** IntentText .it (left panel)
-- **Output:** HTML or Markdown (right panel)
-- **Use Case:** Convert IntentText back to web formats
-
-## Tech stack
-
-| Library                                                      | Purpose                                                |
-| ------------------------------------------------------------ | ------------------------------------------------------ |
-| [@intenttext/core](https://github.com/intenttext/IntentText) | IntentText parsing, rendering, and Markdown conversion |
-| [Monaco Editor](https://microsoft.github.io/monaco-editor/)  | Syntax-highlighted IntentText editor                   |
-| [Vite](https://vitejs.dev) + TypeScript                      | Build tooling and type safety                          |
-
-## Project structure
-
-```
-src/
-  app.ts           Web-to-IT app class
-  it-to-web.ts     IT-to-Web app class
-  html-converter.ts Browser-native HTML → IntentText conversion
-  main.ts          Entry point
-
-public/
-  favicon.ico      PNG favicon
-
-index.html         Web-to-IT page
-it-to-web.html     IT-to-Web page
-vite.config.ts     Build config (Monaco split into its own chunk)
-```
-
-## Performance notes
-
-The paste handler is optimized for large content:
-
-- Content appears instantly in the editor for immediate visual feedback
-- Sanitization and conversion happen asynchronously using `requestAnimationFrame`
-- This prevents the main thread from blocking during large HTML processing
-
-## Usage
-
-### Web-to-IT (index.html)
-
-1. Copy rich content from any web page or application
-2. Paste into the HTML or Markdown panel on the left
-3. See clean IntentText output on the right
-4. Copy, download, or preview the result
-
-### IT-to-Web (it-to-web.html)
-
-1. Type or paste IntentText content in the left panel
-2. See HTML and Markdown output on the right
-3. Switch between HTML and Markdown tabs as needed
-4. Copy or download the converted content
-5. Use the Preview tab to see rendered HTML
+This app is being prepared as a showcase-grade UI foundation for a future Tauri desktop packaging flow.
 
 ## License
 

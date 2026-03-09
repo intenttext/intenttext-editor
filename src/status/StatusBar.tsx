@@ -39,7 +39,7 @@ export function StatusBar({
       <div style={{ display: "flex", gap: 16 }}>
         <span>Blocks: {blocks}</span>
         <span>Lines: {lines}</span>
-        <span>Keywords: {keywords}</span>
+        <span>Canonical Keywords: {keywords}</span>
         <span>Words: {words}</span>
         {errors > 0 && (
           <button
@@ -59,7 +59,7 @@ export function StatusBar({
         )}
       </div>
       <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-        <span>v2.13.2</span>
+        <span>v3.1.0</span>
         <span>Theme: {theme}</span>
         <span>
           {isUnsaved ? (

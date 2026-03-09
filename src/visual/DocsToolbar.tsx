@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import type { Editor } from "@tiptap/core";
 import {
   Undo2,
@@ -70,6 +70,8 @@ import {
   Scale,
   Columns3,
 } from "lucide-react";
+import { LANGUAGE_REGISTRY } from "@intenttext/core";
+import { CATEGORY_META } from "./types";
 
 interface Props {
   editor: Editor | null;
@@ -88,93 +90,33 @@ const STYLE_OPTIONS = [
 type InsertOption = {
   label: string;
   keyword: string;
-  Icon: React.ComponentType<{ size: number }>;
+  category: string;
+  description: string;
+  isReadOnly: boolean;
 };
 type InsertGroup = { category: string; items: InsertOption[] };
 
-const INSERT_GROUPS: InsertGroup[] = [
-  {
-    category: "Content",
-    items: [
-      { label: "Text", keyword: "text", Icon: Type },
-      { label: "Quote", keyword: "quote", Icon: Quote },
-      { label: "Citation", keyword: "cite", Icon: BookMarked },
-      { label: "Code block", keyword: "code", Icon: FileCode2 },
-      { label: "Image", keyword: "image", Icon: ImageIcon },
-      { label: "Link", keyword: "link", Icon: Link2 },
-      { label: "Definition", keyword: "def", Icon: BookOpen },
-      { label: "Figure", keyword: "figure", Icon: Frame },
-      { label: "Contact", keyword: "contact", Icon: UserRound },
-      { label: "Byline", keyword: "byline", Icon: PenLine },
-      { label: "Epigraph", keyword: "epigraph", Icon: MessageSquareQuote },
-      { label: "Caption", keyword: "caption", Icon: Hash },
-      { label: "Footnote", keyword: "footnote", Icon: Footprints },
-      { label: "Dedication", keyword: "dedication", Icon: Heart },
-    ],
-  },
-  {
-    category: "Callouts",
-    items: [
-      { label: "Tip", keyword: "tip", Icon: Lightbulb },
-      { label: "Info", keyword: "info", Icon: Info },
-      { label: "Warning", keyword: "warning", Icon: AlertTriangle },
-      { label: "Danger", keyword: "danger", Icon: ShieldAlert },
-      { label: "Success", keyword: "success", Icon: CircleCheck },
-    ],
-  },
-  {
-    category: "Structure",
-    items: [
-      { label: "Divider", keyword: "divider", Icon: SeparatorHorizontal },
-      { label: "Page break", keyword: "break", Icon: Scissors },
-      { label: "Reference", keyword: "ref", Icon: Bookmark },
-      { label: "Embed", keyword: "embed", Icon: Columns3 },
-      { label: "Table of Contents", keyword: "toc", Icon: ListTree },
-    ],
-  },
-  {
-    category: "Data",
-    items: [
-      { label: "Input", keyword: "input", Icon: ArrowDownToLine },
-      { label: "Output", keyword: "output", Icon: ArrowUpFromLine },
-      { label: "Columns", keyword: "columns", Icon: TableProperties },
-      { label: "Row", keyword: "row", Icon: Rows3 },
-      { label: "Metric", keyword: "metric", Icon: BarChart3 },
-      { label: "Deadline", keyword: "deadline", Icon: CalendarClock },
-    ],
-  },
-  {
-    category: "Agent & Workflow",
-    items: [
-      { label: "Step", keyword: "step", Icon: Workflow },
-      { label: "Task", keyword: "task", Icon: CheckSquare },
-      { label: "Ask", keyword: "ask", Icon: HelpCircle },
-      { label: "Prompt", keyword: "prompt", Icon: PenTool },
-      { label: "Tool", keyword: "tool", Icon: Gauge },
-      { label: "Assert", keyword: "assert", Icon: Scale },
-      { label: "Secret", keyword: "secret", Icon: KeyRound },
-    ],
-  },
-  {
-    category: "Trust",
-    items: [
-      { label: "Approve", keyword: "approve", Icon: ShieldCheck },
-      { label: "Sign", keyword: "sign", Icon: PenLine },
-      { label: "Freeze / Seal", keyword: "freeze", Icon: FileLock2 },
-      { label: "Revision", keyword: "revision", Icon: RotateCcw },
-      { label: "Amendment", keyword: "amendment", Icon: FileEdit },
-      { label: "Signature line", keyword: "signline", Icon: Star },
-    ],
-  },
-  {
-    category: "Layout",
-    items: [
-      { label: "Page setup", keyword: "page", Icon: FileText },
-      { label: "Header", keyword: "header", Icon: Heading1 },
-      { label: "Footer", keyword: "footer", Icon: Footprints },
-      { label: "Watermark", keyword: "watermark", Icon: Clock },
-    ],
-  },
+const READ_ONLY_INSERT_KEYWORDS = new Set([
+  "history",
+  "revision",
+  "track",
+  "freeze",
+]);
+const HIDDEN_INSERT_KEYWORDS = new Set([
+  "agent",
+  "model",
+  "meta",
+  "context",
+  "history",
+]);
+const CATEGORY_ORDER = [
+  "identity",
+  "structure",
+  "content",
+  "data",
+  "agent",
+  "trust",
+  "layout",
 ];
 
 const FONT_FAMILIES = [
@@ -350,6 +292,38 @@ export function DocsToolbar({ editor }: Props) {
   }, [editor]);
 
   const [fontSize, setFontSize] = useState(11);
+
+  const insertGroups = useMemo<InsertGroup[]>(() => {
+    const grouped = new Map<string, InsertOption[]>();
+
+    for (const entry of LANGUAGE_REGISTRY) {
+      if (entry.status !== "stable") continue;
+      if (HIDDEN_INSERT_KEYWORDS.has(entry.canonical)) continue;
+
+      const category = entry.category;
+      const list = grouped.get(category) || [];
+      list.push({
+        label: entry.canonical,
+        keyword: entry.canonical,
+        category,
+        description: entry.description,
+        isReadOnly: READ_ONLY_INSERT_KEYWORDS.has(entry.canonical),
+      });
+      grouped.set(category, list);
+    }
+
+    const result: InsertGroup[] = [];
+    for (const category of CATEGORY_ORDER) {
+      const items = grouped.get(category);
+      if (!items || items.length === 0) continue;
+      items.sort((a, b) => a.keyword.localeCompare(b.keyword));
+      result.push({
+        category: CATEGORY_META[category]?.label || category,
+        items,
+      });
+    }
+    return result;
+  }, []);
 
   // Sync font size from editor selection
   useEffect(() => {
@@ -753,7 +727,7 @@ export function DocsToolbar({ editor }: Props) {
         </button>
         {insertOpen && (
           <div className="docs-tb-dropdown-menu docs-insert-menu">
-            {INSERT_GROUPS.map((group, gi) => (
+            {insertGroups.map((group, gi) => (
               <div key={group.category}>
                 {gi > 0 && <div className="docs-insert-divider" />}
                 <div className="docs-insert-category">{group.category}</div>
@@ -762,12 +736,16 @@ export function DocsToolbar({ editor }: Props) {
                     key={opt.keyword}
                     className="docs-tb-dropdown-item docs-insert-item"
                     onClick={() => insertBlock(opt.keyword)}
+                    disabled={opt.isReadOnly}
+                    title={opt.description}
                   >
                     <span className="docs-insert-icon">
-                      <opt.Icon size={15} />
+                      {CATEGORY_META[opt.category]?.icon || "•"}
                     </span>
                     <span className="docs-insert-label">{opt.label}</span>
-                    <span className="docs-insert-kw">.{opt.keyword}</span>
+                    <span className="docs-insert-kw">
+                      {opt.isReadOnly ? "locked" : `.${opt.keyword}`}
+                    </span>
                   </button>
                 ))}
               </div>

@@ -303,37 +303,46 @@ export const ITGenericBlock = Node.create({
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-it-type="generic"]' }];
+    return [{ tag: '[data-it-type="generic"]' }];
   },
   renderHTML({ HTMLAttributes, node }) {
     const kw = node.attrs.keyword;
     const props = safeParse(node.attrs.props);
-    const url = props.url || props.href || "";
-    const children: unknown[] = [
-      [
-        "span",
-        { class: "it-doc-generic-label", contenteditable: "false" },
-        `${kw}:`,
-      ],
-      ["span", { class: "it-doc-generic-content" }, 0],
-    ];
-    // For link blocks, append a URL hint
-    if (kw === "link" && url) {
-      children.push([
-        "span",
-        { class: "it-doc-link-url", contenteditable: "false" },
-        url,
-      ]);
+    const linkTarget = String(
+      props.to || props.url || props.href || props.file || "",
+    ).trim();
+
+    if ((kw === "link" || kw === "ref") && linkTarget) {
+      return [
+        "p",
+        mergeAttributes(HTMLAttributes, {
+          "data-it-type": "generic",
+          "data-keyword": kw,
+          class: `it-doc-generic it-doc-kw-${kw}`,
+          style: buildStyle(kw, props),
+        }),
+        [
+          "a",
+          {
+            class: "it-doc-inline-link",
+            href: linkTarget,
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+          0,
+        ],
+      ];
     }
+
     return [
-      "div",
+      "p",
       mergeAttributes(HTMLAttributes, {
         "data-it-type": "generic",
         "data-keyword": kw,
         class: `it-doc-generic it-doc-kw-${kw}`,
         style: buildStyle(kw, props),
       }),
-      ...children,
+      ["span", { class: "it-doc-generic-content" }, 0],
     ];
   },
 });
