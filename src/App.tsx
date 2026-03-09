@@ -72,6 +72,8 @@ export default function App() {
   );
   const [modal, setModal] = useState<ModalType>(null);
   const [showcaseMode, setShowcaseMode] = useState<ShowcaseMode>("search");
+  const [trustShowcaseDocId, setTrustShowcaseDocId] =
+    useState("service-agreement");
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>(
     () => (localStorage.getItem("it-editor-mode") as EditorMode) || "visual",
@@ -139,6 +141,16 @@ export default function App() {
       localStorage.setItem("it-editor-showcase-onboarded", "1");
     },
     [setContent, setFilename, markSaved],
+  );
+
+  const loadTrustDocById = useCallback(
+    (docId: string) => {
+      const doc = getDemoDocById(docId);
+      if (!doc) return;
+      setTrustShowcaseDocId(docId);
+      loadDemoDoc(doc);
+    },
+    [loadDemoDoc],
   );
 
   // Keyboard shortcuts
@@ -300,13 +312,25 @@ export default function App() {
 
           {showcaseMode === "search" && (
             <SearchShowcasePanel
-              content={content}
               activeTitle={docMeta.meta.title}
               onLoadDemo={loadDemoDoc}
             />
           )}
           {showcaseMode === "trust" && (
-            <TrustShowcasePanel trust={trustState.trust} />
+            <TrustShowcasePanel
+              trust={trustState.trust}
+              demoDocs={DEMO_DOCS}
+              activeDocId={trustShowcaseDocId}
+              onSelectDoc={loadTrustDocById}
+              content={content}
+              onContentChange={setContent}
+              onTrack={trustState.startTracking}
+              onApprove={trustState.addApproval}
+              onSign={trustState.addSignature}
+              onSeal={trustState.seal}
+              onVerify={trustState.verify}
+              onAmend={trustState.addAmendment}
+            />
           )}
           {showcaseMode === "workflow" && (
             <WorkflowShowcasePanel content={content} />

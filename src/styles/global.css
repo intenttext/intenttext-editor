@@ -156,12 +156,59 @@ body::after {
   padding: 9px 10px;
 }
 
+.showcase-field select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0d141d;
+  color: var(--text-primary);
+  padding: 9px 10px;
+}
+
+.showcase-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+
+.showcase-chip {
+  border: 1px solid var(--border);
+  background: #0f151f;
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.showcase-chip.removable {
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
 .showcase-statline {
   display: flex;
   justify-content: space-between;
   padding: 10px 14px;
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.showcase-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.showcase-view-toggle button {
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.showcase-view-toggle button.active {
+  color: var(--text-primary);
+  background: rgba(245, 158, 11, 0.14);
 }
 
 .showcase-result-list,
@@ -201,6 +248,15 @@ body::after {
   font-size: 12px;
 }
 
+.showcase-result-table {
+  animation: showcase-fade-in 0.16s ease-out;
+}
+
+.showcase-result-card {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
 .showcase-current-doc,
 .showcase-hash,
 .showcase-trust-state {
@@ -210,6 +266,118 @@ body::after {
   border-radius: 8px;
   background: #0f151f;
   font-size: 12px;
+}
+
+.showcase-verify-banner {
+  margin: 0 14px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+}
+
+.showcase-verify-banner.pass {
+  border-color: rgba(63, 185, 80, 0.55);
+  background: rgba(63, 185, 80, 0.1);
+}
+
+.showcase-verify-banner.fail {
+  border-color: rgba(248, 81, 73, 0.55);
+  background: rgba(248, 81, 73, 0.1);
+}
+
+.showcase-amend-form {
+  margin: 0 14px 14px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0f151f;
+}
+
+.showcase-amend-form label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 6px 0 4px;
+}
+
+.showcase-amend-form input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: #0d141d;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.showcase-context,
+.showcase-exec-log {
+  margin: 0 14px 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0f151f;
+}
+
+.showcase-context label,
+.showcase-exec-log label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.showcase-context-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.showcase-context-row code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: #fbbf24;
+}
+
+.showcase-log-row {
+  border-top: 1px solid rgba(48, 54, 61, 0.7);
+  padding-top: 7px;
+  margin-top: 7px;
+  font-size: 12px;
+}
+
+.showcase-log-head {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-bottom: 3px;
+}
+
+.showcase-gate-card {
+  margin: 0 14px 10px;
+  padding: 10px;
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.showcase-gate-card p {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.showcase-gate-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .showcase-current-doc label,
@@ -275,9 +443,34 @@ body::after {
   border-color: rgba(63, 185, 80, 0.5);
 }
 
-.workflow-item.active {
+.workflow-item.running {
   border-color: rgba(245, 158, 11, 0.65);
   background: rgba(245, 158, 11, 0.08);
+}
+
+.workflow-item.pending {
+  opacity: 0.85;
+}
+
+.workflow-item.blocked {
+  border-color: rgba(245, 158, 11, 0.8);
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.workflow-item.failed {
+  border-color: rgba(248, 81, 73, 0.8);
+  background: rgba(248, 81, 73, 0.12);
+}
+
+@keyframes showcase-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .workflow-type {

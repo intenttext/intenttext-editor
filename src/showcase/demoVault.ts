@@ -48,6 +48,26 @@ ask: What is the data volume for historical records? | owner: Michael Chen | due
 `,
   },
   {
+    id: "nda-techcorp",
+    title: "Non-Disclosure Agreement — TechCorp Industries",
+    section: "contracts",
+    source: `title: Non-Disclosure Agreement — TechCorp Industries
+summary: Mutual NDA for partnership discussions
+meta: | author: Ahmed Al-Rashid | tags: nda, legal, confidential
+
+section: Purpose
+text: Both parties will share confidential information during partnership discovery.
+
+section: Obligations
+task: Review NDA terms | owner: Sara Hassan | due: 12/03/2026
+task: Counter-sign and return | owner: Michael Chen | due: 20/03/2026
+ask: Include IP assignment clause? | owner: Sara Hassan | due: 11/03/2026
+
+section: Approval
+track: | id: NDA-2026-042 | by: Ahmed Al-Rashid | at: 10/03/2026
+`,
+  },
+  {
     id: "workflow-client-onboarding",
     title: "Workflow — Client Onboarding",
     section: "workflows",

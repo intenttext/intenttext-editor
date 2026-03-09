@@ -20,7 +20,14 @@ export interface WorkflowRuntimeAdapter {
   reset: (state: WorkflowRuntimeState) => WorkflowRuntimeState;
 }
 
-const EXEC_TYPES = new Set(["step", "decision", "gate", "result", "task", "ask"]);
+const EXEC_TYPES = new Set([
+  "step",
+  "decision",
+  "gate",
+  "result",
+  "task",
+  "ask",
+]);
 
 function createMockAdapter(): WorkflowRuntimeAdapter {
   return {

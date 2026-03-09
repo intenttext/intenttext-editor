@@ -1,10 +1,69 @@
+import { useMemo, useState } from "react";
+import type { VerifyResult } from "@intenttext/core";
 import type { TrustState } from "../hooks/useTrustState";
+import type { DemoDoc } from "./demoVault";
 
 interface Props {
   trust: TrustState;
+  demoDocs: DemoDoc[];
+  activeDocId: string;
+  onSelectDoc: (docId: string) => void;
+  content: string;
+  onContentChange: (next: string) => void;
+  onTrack: (id?: string) => void;
+  onApprove: (by: string, role: string, note?: string) => void;
+  onSign: (by: string, role: string) => void;
+  onSeal: (
+    signer: string,
+    role?: string,
+  ) => { success: boolean; error: string | null };
+  onVerify: () => VerifyResult | null;
+  onAmend: (
+    section: string,
+    was: string,
+    now: string,
+    by: string,
+    ref?: string,
+  ) => void;
 }
 
-export function TrustShowcasePanel({ trust }: Props) {
+function withTamper(content: string): string {
+  const target = "agreement";
+  const i = content.toLowerCase().indexOf(target);
+  if (i >= 0) {
+    return content.slice(0, i) + "agxeement" + content.slice(i + target.length);
+  }
+  return content.replace(/([a-zA-Z])/, "x");
+}
+
+export function TrustShowcasePanel({
+  trust,
+  demoDocs,
+  activeDocId,
+  onSelectDoc,
+  content,
+  onContentChange,
+  onTrack,
+  onApprove,
+  onSign,
+  onSeal,
+  onVerify,
+  onAmend,
+}: Props) {
+  const [verifyState, setVerifyState] = useState<VerifyResult | null>(null);
+  const [tampered, setTampered] = useState(false);
+  const [snapshot, setSnapshot] = useState<string | null>(null);
+  const [showAmend, setShowAmend] = useState(false);
+  const [amendSection, setAmendSection] = useState("Payment Terms");
+  const [amendWas, setAmendWas] = useState("30 days grace period");
+  const [amendNow, setAmendNow] = useState("14 days grace period");
+  const [amendBy, setAmendBy] = useState("Ahmed Al-Rashid");
+
+  const contractDocs = useMemo(
+    () => demoDocs.filter((d) => d.section === "contracts"),
+    [demoDocs],
+  );
+
   const events = [
     ...(trust.trackBlock
       ? [
@@ -41,11 +100,52 @@ export function TrustShowcasePanel({ trust }: Props) {
     })),
   ];
 
+  const runVerify = () => {
+    setVerifyState(onVerify());
+  };
+
+  const simulateTamper = () => {
+    if (!tampered) {
+      setSnapshot(content);
+      onContentChange(withTamper(content));
+      setTampered(true);
+      setTimeout(() => setVerifyState(onVerify()), 20);
+    }
+  };
+
+  const restoreTamper = () => {
+    if (snapshot != null) {
+      onContentChange(snapshot);
+    }
+    setTampered(false);
+    setSnapshot(null);
+    setVerifyState(null);
+  };
+
   return (
     <aside className="showcase-panel">
       <div className="showcase-panel-header">
         <h3>Document Trust</h3>
         <p>Track → approve → sign → seal → verify → amend timeline.</p>
+      </div>
+
+      <div className="showcase-field">
+        <label>Demo Document</label>
+        <select
+          value={activeDocId}
+          onChange={(e) => {
+            onSelectDoc(e.target.value);
+            setTampered(false);
+            setSnapshot(null);
+            setVerifyState(null);
+          }}
+        >
+          {contractDocs.map((doc) => (
+            <option key={doc.id} value={doc.id}>
+              {doc.section}/{doc.id}.it
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="showcase-trust-state">
@@ -76,6 +176,70 @@ export function TrustShowcasePanel({ trust }: Props) {
         <div className="showcase-hash">
           <label>Seal hash</label>
           <code>{trust.sealHash}</code>
+        </div>
+      )}
+
+      {verifyState && (
+        <div
+          className={`showcase-verify-banner ${verifyState.intact ? "pass" : "fail"}`}
+        >
+          {verifyState.intact
+            ? "Integrity verified: hash matches sealed content"
+            : "Integrity failed: content changed after sealing"}
+        </div>
+      )}
+
+      <div className="showcase-actions">
+        {!trust.isTracked && (
+          <button onClick={() => onTrack("DOC-SHOWCASE-001")}>
+            Start Tracking
+          </button>
+        )}
+        {!trust.isSealed && (
+          <>
+            <button onClick={() => onApprove("Sara Hassan", "Legal Counsel")}>
+              Quick Approve
+            </button>
+            <button onClick={() => onSign("Ahmed Al-Rashid", "CEO")}>
+              Quick Sign
+            </button>
+            <button onClick={() => onSeal("Ahmed Al-Rashid", "CEO")}>
+              Seal Document
+            </button>
+          </>
+        )}
+        <button onClick={runVerify}>Verify Integrity</button>
+        <button onClick={simulateTamper}>Simulate Tamper</button>
+        {tampered && <button onClick={restoreTamper}>Restore Original</button>}
+        <button onClick={() => setShowAmend((p) => !p)}>Add Amendment</button>
+      </div>
+
+      {showAmend && (
+        <div className="showcase-amend-form">
+          <label>Section</label>
+          <input
+            value={amendSection}
+            onChange={(e) => setAmendSection(e.target.value)}
+          />
+          <label>Was</label>
+          <input
+            value={amendWas}
+            onChange={(e) => setAmendWas(e.target.value)}
+          />
+          <label>Now</label>
+          <input
+            value={amendNow}
+            onChange={(e) => setAmendNow(e.target.value)}
+          />
+          <label>By</label>
+          <input value={amendBy} onChange={(e) => setAmendBy(e.target.value)} />
+          <button
+            onClick={() =>
+              onAmend(amendSection, amendWas, amendNow, amendBy, "Amendment #1")
+            }
+          >
+            Apply Amendment
+          </button>
         </div>
       )}
     </aside>
