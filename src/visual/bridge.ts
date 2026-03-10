@@ -12,6 +12,11 @@ const HEADING_MAP: Record<string, string> = {
   sub: "itSub",
 };
 
+const KEYWORD_ALIASES: Record<string, string> = {
+  note: "text",
+  "body-text": "text",
+};
+
 // Style keys managed through TipTap marks/attributes.
 // These are extracted FROM marks on doc→source, and applied AS marks on source→doc.
 const MARK_STYLE_KEYS = new Set([
@@ -183,6 +188,78 @@ function mergeProps(
   return { ...existing, ...markProps };
 }
 
+function normalizeKeyword(keyword: string): string {
+  const k = keyword.toLowerCase();
+  return KEYWORD_ALIASES[k] || k;
+}
+
+function lineKeyword(trimmedLine: string): string | null {
+  if (trimmedLine === "---") return "divider";
+  const m = trimmedLine.match(/^([a-zA-Z][\w-]*):/);
+  if (!m) return null;
+  return normalizeKeyword(m[1]);
+}
+
+function parsedBlockKeyword(blockType: string): string {
+  return normalizeKeyword(blockType);
+}
+
+function keywordsMatch(sourceKey: string, parsedKey: string): boolean {
+  if (sourceKey === parsedKey) return true;
+  // Some callout aliases normalize to info in parser output.
+  if (
+    sourceKey === "info" &&
+    ["tip", "warning", "danger", "success"].includes(parsedKey)
+  ) {
+    return true;
+  }
+  if (
+    parsedKey === "info" &&
+    ["tip", "warning", "danger", "success"].includes(sourceKey)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function parseInlineProps(rest: string): {
+  content: string;
+  properties: Record<string, string>;
+} {
+  if (!rest) return { content: "", properties: {} };
+  const parts = rest.split(" | ");
+  let content = parts[0] || "";
+  const properties: Record<string, string> = {};
+
+  for (let i = 1; i < parts.length; i++) {
+    const seg = parts[i];
+    const m = seg.match(/^([a-zA-Z_][\w-]*)\s*:\s*(.*)$/);
+    if (!m) {
+      // Keep literal text segments that are not valid IT pipe props.
+      content += ` | ${seg}`;
+      continue;
+    }
+    properties[m[1]] = m[2];
+  }
+
+  return { content, properties };
+}
+
+function fallbackLineToBlock(trimmedLine: string): {
+  type: string;
+  content?: string;
+  properties?: Record<string, string>;
+} | null {
+  if (trimmedLine === "---") return { type: "divider" };
+  const m = trimmedLine.match(/^([a-zA-Z][\w-]*):\s*(.*)$/);
+  if (!m) return null;
+
+  const type = normalizeKeyword(m[1]);
+  const rest = m[2] || "";
+  const { content, properties } = parseInlineProps(rest);
+  return { type, content, properties };
+}
+
 /* ── Source → Doc ─────────────────────────────────────────── */
 
 /**
@@ -229,7 +306,47 @@ export function sourceToDoc(source: string): JSONContent {
     // Code block fence — skip, handled by parser
     if (trimmed.startsWith("```")) continue;
 
-    // Use the next parsed block
+    const sourceKey = lineKeyword(trimmed);
+
+    // Keep text/template lines literal to avoid parser normalization
+    // (e.g. markdown marker stripping or placeholder mutation).
+    if (sourceKey && (sourceKey === "text" || trimmed.includes("{{"))) {
+      const rawBlock = fallbackLineToBlock(trimmed);
+      if (rawBlock) {
+        const node = blockToNode(rawBlock);
+        if (node) result.push(node);
+
+        // Consume matching parsed block to keep parser index aligned.
+        if (blockIdx < doc.blocks.length) {
+          const parsedKey = parsedBlockKeyword(doc.blocks[blockIdx].type);
+          if (keywordsMatch(sourceKey, parsedKey)) {
+            blockIdx++;
+          }
+        }
+        continue;
+      }
+    }
+
+    // If parser produced a block, only consume it when keyword matches current line.
+    if (blockIdx < content.length && sourceKey) {
+      const nextParsed = doc.blocks[blockIdx];
+      const parsedKey = parsedBlockKeyword(nextParsed.type);
+      if (keywordsMatch(sourceKey, parsedKey)) {
+        result.push(content[blockIdx]);
+        blockIdx++;
+        continue;
+      }
+    }
+
+    // Fallback: parse line directly so raw source lines are never dropped.
+    const rawBlock = fallbackLineToBlock(trimmed);
+    if (rawBlock) {
+      const node = blockToNode(rawBlock);
+      if (node) result.push(node);
+      continue;
+    }
+
+    // Final fallback: keep parser progression if nothing else matched.
     if (blockIdx < content.length) {
       result.push(content[blockIdx]);
       blockIdx++;

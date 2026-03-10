@@ -44,6 +44,7 @@ interface Props {
 export function VisualEditor({ value, onChange, theme }: Props) {
   const lastSourceRef = useRef<string>("");
   const isInternalUpdate = useRef(false);
+  const isHydrating = useRef(true);
 
   const editor = useEditor({
     extensions: [
@@ -87,6 +88,8 @@ export function VisualEditor({ value, onChange, theme }: Props) {
     ],
     content: sourceToDoc(value),
     onUpdate: ({ editor: ed }) => {
+      // Avoid rewriting source while editor is still hydrating initial content.
+      if (isHydrating.current) return;
       const source = docToSource(ed.getJSON());
       lastSourceRef.current = source;
       isInternalUpdate.current = true;
@@ -101,6 +104,15 @@ export function VisualEditor({ value, onChange, theme }: Props) {
   });
 
   // Sync external source changes (e.g. from file open, source mode edits)
+  useEffect(() => {
+    // Mark hydration complete on next tick after mount content is applied.
+    const t = window.setTimeout(() => {
+      isHydrating.current = false;
+      lastSourceRef.current = value;
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     if (!editor) return;
     if (isInternalUpdate.current) {
