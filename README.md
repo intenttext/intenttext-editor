@@ -2,6 +2,8 @@
 
 Dotit Web is the browser editor experience for `.it` documents, built on `@intenttext/core`.
 
+Canonical language and API documentation lives in `intenttext-docs` (published at `https://itdocs.vercel.app`).
+
 The app includes:
 
 - Source mode (Monaco) for precise text editing
